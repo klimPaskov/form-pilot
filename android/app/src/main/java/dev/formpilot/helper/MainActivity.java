@@ -65,7 +65,9 @@ public class MainActivity extends Activity {
                 + "open this app's App info, tap the three dots, and choose \"Allow restricted settings\".\n"
                 + "2. A blue dot appears at the edge of the screen. Drag it wherever you like.\n"
                 + "3. Open a form or quiz in Chrome. Tap the dot to answer the question on screen. "
-                + "Hold it to answer every unanswered question on the page. Tap it during a run to stop.\n"
+                + "Hold it until it turns teal to answer every unanswered question on the page. "
+                + "Keep holding until it turns purple (2 seconds) to do every page of the form: it presses Next between pages and stops on the last one. "
+                + "Tap it during a run to stop.\n"
                 + "4. The dot turns green when filled, amber for a low-confidence answer, red on a problem.\n\n"
                 + "Form Pilot never presses Submit. It reads the screen only when you use the dot, and sends only the question to the Anthropic API.", 14);
 

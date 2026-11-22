@@ -322,6 +322,24 @@ final class ScreenReader {
         return s == null ? "" : s.replaceAll("\\s+", " ").trim();
     }
 
+    private static final Pattern NEXT = Pattern.compile("^(next|continue|next page|next question|next section)$", Pattern.CASE_INSENSITIVE);
+
+    /** The form's own next-page button, if there is one. Never the submit button. */
+    static AccessibilityNodeInfo findNext(AccessibilityNodeInfo root) {
+        if (root == null) return null;
+        for (Item it : items(root)) {
+            if (it.type == Type.OTHER_CONTROL && NEXT.matcher(it.text.trim()).matches()) return it.node;
+        }
+        return null;
+    }
+
+    /** Changes when the page shows different questions; used to tell whether Next advanced. */
+    static String signature(AccessibilityNodeInfo root) {
+        StringBuilder sb = new StringBuilder();
+        for (Question q : read(root)) sb.append(q.prompt.length() > 50 ? q.prompt.substring(0, 50) : q.prompt).append('|');
+        return sb.toString();
+    }
+
     /** Plain-text dump of what the reader sees, for diagnosing a page it gets wrong. */
     static String dump(AccessibilityNodeInfo root, int screenHeight) {
         if (root == null) return "(no active window)";

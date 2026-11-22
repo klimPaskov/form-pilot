@@ -5,7 +5,7 @@ import type { Detected } from './types';
 
 // Buttons that navigate or submit are never answer choices - and must never be clicked.
 const NOT_A_CHOICE =
-  /^(submit|next|back|prev|continue|skip|finish|done|cancel|close|save|send|ok|log ?in|log ?out|sign|menu|clear|reset|start|hint|check|help|share|settings|more)/i;
+  /^(submit|next|back|prev|continue|skip|finish|done|cancel|close|save|send|ok|log ?in|log ?out|sign|menu|clear|reset|start|hint|check|help|share|settings|more|zoom|enter fullscreen|exit fullscreen|play|pause|mute)/i;
 const SEL = 'button,[role=button],[role=option],[role=menuitemradio]';
 const label = (b: HTMLElement): string =>
   readText(b, { cap: 300 }) || (b.getAttribute('aria-label') ?? '').trim();

@@ -32,8 +32,11 @@ const INLINE = new Set(['SPAN', 'LABEL', 'B', 'I', 'EM', 'STRONG', 'FONT', 'A', 
 const STOP_CLIMB = 'form,main,body,[role=main],[role=form]';
 
 /** Blocks this page session already answered or gave up on, so the next activation moves on. */
-const handled = new WeakSet<Element>();
-export const markHandled = (d: Detected): void => void handled.add(d.block);
+// Keyed by the block and remembered together with the question it held: single-page apps
+// (Socrative) reuse the same elements for the next question, which must not count as handled.
+const handled = new WeakMap<Element, string>();
+const fingerprint = (d: Detected): string => `${d.question.prompt}|${d.question.options?.map((o) => o.label).join('|') ?? ''}`;
+export const markHandled = (d: Detected): void => void handled.set(d.block, fingerprint(d));
 
 export const hasControl = (e: Element): boolean => e.matches(CONTROL_SEL) || !!e.querySelector(CONTROL_SEL);
 
@@ -381,7 +384,7 @@ export function isChecked(el: HTMLElement): boolean {
 }
 
 export function isAnswered(d: Detected): boolean {
-  if (handled.has(d.block)) return true;
+  if (handled.get(d.block) === fingerprint(d)) return true;
   const t = d.target;
   switch (t.t) {
     case 'choice':
@@ -423,7 +426,11 @@ export function detectAll(root: ParentNode = document, adapter = pickAdapter()):
       if (d) found.push(d);
     }
   }
-  if (!found.length) {
+  // Plain buttons are only read as answer choices on pages with no real answer controls at all.
+  // (Once a Socrative answer is submitted its options are disabled; the image's zoom buttons
+  // must not then be mistaken for a question.)
+  const hasAnswerControls = !!root.querySelector('[role=radio],[role=checkbox],input[type=radio],input[type=checkbox]');
+  if (!found.length && !hasAnswerControls) {
     const d = buttonChoices(root, adapter?.name ?? 'generic');
     if (d) found.push(d);
   }

@@ -38,7 +38,11 @@ import java.util.concurrent.TimeUnit;
 public class PilotService extends AccessibilityService {
     private static final String TAG = "FormPilot";
     private static final int GREY = 0xFF8A8F98, BLUE = 0xFF1A73E8, GREEN = 0xFF2E9E5B, AMBER = 0xFFD9930D, RED = 0xFFD64545;
+    private static final int TEAL = 0xFF00897B, PURPLE = 0xFF8E24AA;
     private static final int MAX_PER_RUN = 40;
+    private static final int MAX_PAGES = 30;
+    /** Modes: one question (tap), every question on the page (hold), every page of the form (long hold). */
+    private static final int ONE = 0, PAGE = 1, FORM = 2;
 
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
@@ -68,7 +72,7 @@ public class PilotService extends AccessibilityService {
                     // adb shell run-as dev.formpilot.helper cat files/dump.txt
                     // -a ...DUMP writes what the reader sees; --es do tap|hold also runs the helper first.
                     String act = intent.getStringExtra("do");
-                    if (act != null) activate("hold".equals(act));
+                    if (act != null) activate("form".equals(act) ? FORM : "hold".equals(act) ? PAGE : ONE);
                     else note("dump.txt", describeScreen(), false);
                 }
             };
@@ -122,9 +126,15 @@ public class PilotService extends AccessibilityService {
         lp.y = getResources().getDisplayMetrics().heightPixels / 2;
 
         final int slop = ViewConfiguration.get(this).getScaledTouchSlop();
-        final Runnable longPress = () -> {
-            button.setTag("long");
-            activate(true);
+        // How long the dot is held picks the mode; its colour shows which one will run on release.
+        final int[] stage = {ONE};
+        final Runnable toPage = () -> {
+            stage[0] = PAGE;
+            dot.setColor(TEAL);
+        };
+        final Runnable toForm = () -> {
+            stage[0] = FORM;
+            dot.setColor(PURPLE);
         };
         button.setOnTouchListener(new View.OnTouchListener() {
             float downX, downY;
@@ -140,13 +150,18 @@ public class PilotService extends AccessibilityService {
                         startX = lp.x;
                         startY = lp.y;
                         dragging = false;
-                        v.setTag(null);
-                        main.postDelayed(longPress, 600);
+                        stage[0] = ONE;
+                        if (!busy) {
+                            main.postDelayed(toPage, 600);
+                            main.postDelayed(toForm, 2000);
+                        }
                         return true;
                     case MotionEvent.ACTION_MOVE:
                         if (!dragging && Math.hypot(e.getRawX() - downX, e.getRawY() - downY) > slop) {
                             dragging = true;
-                            main.removeCallbacks(longPress);
+                            main.removeCallbacks(toPage);
+                            main.removeCallbacks(toForm);
+                            if (!busy) dot.setColor(BLUE);
                         }
                         if (dragging) {
                             lp.x = startX + (int) (e.getRawX() - downX);
@@ -155,11 +170,14 @@ public class PilotService extends AccessibilityService {
                         }
                         return true;
                     case MotionEvent.ACTION_UP:
-                        main.removeCallbacks(longPress);
-                        if (!dragging && v.getTag() == null) activate(false);
+                        main.removeCallbacks(toPage);
+                        main.removeCallbacks(toForm);
+                        if (!dragging) activate(stage[0]);
                         return true;
                     default:
-                        main.removeCallbacks(longPress);
+                        main.removeCallbacks(toPage);
+                        main.removeCallbacks(toForm);
+                        if (!busy) dot.setColor(BLUE);
                         return true;
                 }
             }
@@ -182,7 +200,7 @@ public class PilotService extends AccessibilityService {
     // ---- answering -----------------------------------------------------------------------------------
 
     /** A tap while a run is in progress stops it; otherwise it starts one. */
-    private void activate(final boolean wholePage) {
+    private void activate(final int mode) {
         if (busy) {
             cancel = true;
             return;
@@ -197,7 +215,9 @@ public class PilotService extends AccessibilityService {
         show(GREY, null);
         worker.execute(() -> {
             try {
-                run(new Claude(prefs.apiKey(), prefs.model(), prefs.effort()), wholePage);
+                Claude claude = new Claude(prefs.apiKey(), prefs.model(), prefs.effort());
+                if (mode == FORM) runForm(claude);
+                else run(claude, mode == PAGE, true);
             } catch (Throwable t) {
                 Log.e(TAG, "run failed", t);
                 note("log.txt", "ERROR " + Log.getStackTraceString(t), true);
@@ -234,7 +254,7 @@ public class PilotService extends AccessibilityService {
         cancel = false;
         show(GREY, null);
         try {
-            run(new Claude(prefs.apiKey(), prefs.model(), prefs.effort()), false);
+            run(new Claude(prefs.apiKey(), prefs.model(), prefs.effort()), false, true);
         } catch (Throwable t) {
             note("log.txt", "AUTO ERROR " + Log.getStackTraceString(t), true);
             show(RED, "Form Pilot error: " + t.getMessage());
@@ -254,7 +274,41 @@ public class PilotService extends AccessibilityService {
         return false;
     }
 
-    private void run(Claude claude, boolean wholePage) {
+    /**
+     * Whole-form mode: answer the page, press the form's own Next button, and repeat until there
+     * is no Next button (the last page). The Submit button is never pressed.
+     */
+    private void runForm(Claude claude) {
+        int filled = 0, failed = 0, pages = 1;
+        String stopped = null;
+        while (pages <= MAX_PAGES && !cancel) {
+            int[] r = run(claude, true, false);
+            filled += r[0];
+            failed += r[1];
+            if (cancel || r[2] == 1) break;
+            AccessibilityNodeInfo root = getRootInActiveWindow();
+            String before = ScreenReader.signature(root);
+            AccessibilityNodeInfo next = ScreenReader.findNext(root);
+            if (next == null) break; // last page
+            if (!tap(next)) {
+                stopped = "could not press Next";
+                break;
+            }
+            pause(2500);
+            if (ScreenReader.signature(getRootInActiveWindow()).equals(before)) {
+                stopped = "the page did not advance - a required question may need your answer";
+                break;
+            }
+            pages++;
+        }
+        note("log.txt", "FORM filled=" + filled + " failed=" + failed + " pages=" + pages + " stopped=" + stopped, true);
+        String text = "Filled " + filled + (pages > 1 ? " on " + pages + " pages" : "") + (failed > 0 ? ", " + failed + " not filled" : "")
+                + (cancel ? ". Stopped by you" : stopped != null ? ". Stopped: " + stopped : "") + ". Review, then submit yourself.";
+        show(failed > 0 || stopped != null ? AMBER : GREEN, text);
+    }
+
+    /** Answers one question or the whole page. Returns {filled, failed, fatal ? 1 : 0}. */
+    private int[] run(Claude claude, boolean wholePage, boolean summarize) {
         int filled = 0, failed = 0;
         String lastMessage = null;
         boolean low = false;
@@ -282,12 +336,17 @@ public class PilotService extends AccessibilityService {
                 failed++;
                 lastMessage = f.getMessage();
                 note("log.txt", "FAIL " + f.getMessage(), true);
-                if (f.fatal) break;
+                if (f.fatal) {
+                    show(RED, lastMessage);
+                    return new int[] {filled, failed, 1};
+                }
             }
         }
+        if (!summarize) return new int[] {filled, failed, 0};
         if (filled == 0 && failed == 0) show(RED, "No unanswered question found on screen");
         else if (wholePage) show(failed > 0 ? AMBER : GREEN, "Filled " + filled + (failed > 0 ? ", " + failed + " not filled" : "") + ". Review, then submit yourself.");
         else show(failed > 0 ? RED : low ? AMBER : GREEN, lastMessage);
+        return new int[] {filled, failed, 0};
     }
 
     /** The first unanswered question on screen; in whole-page mode, anywhere on the page. */

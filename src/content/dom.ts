@@ -47,7 +47,13 @@ export function readText(root: Element | null | undefined, opts: ReadOpts = {}):
     if (e.tagName === 'IMG') out += ` ${e.getAttribute('alt') ?? ''} `;
     const block = !INLINE_TAGS.has(e.tagName);
     if (block) out += ' ';
-    for (const c of e.childNodes) walk(c);
+    let previous: Node | null = null;
+    for (const c of e.childNodes) {
+      // Two elements side by side (a letter badge next to its label) are separate words.
+      if (c.nodeType === 1 && previous?.nodeType === 1) out += ' ';
+      walk(c);
+      previous = c;
+    }
     if (block) out += ' ';
   };
   walk(root);

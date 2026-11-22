@@ -224,3 +224,35 @@ describe('date fields and tick-box grids', () => {
     expect(q.options!.map((o) => o.label)).toEqual(['Dining: Japan', 'Dining: Peru', 'Skiing: Japan', 'Skiing: Peru']);
   });
 });
+
+describe('pages that reuse elements for the next question', () => {
+  it('treats new question text in the same elements as a new question', async () => {
+    document.body.innerHTML = `<main><h2 id="q">First question?</h2><div role="radiogroup">
+      <button type="button" role="radio" aria-checked="false">Yes</button>
+      <button type="button" role="radio" aria-checked="false">No</button></div></main>`;
+    for (const el of document.querySelectorAll('[role=radio]')) el.addEventListener('click', () => el.setAttribute('aria-checked', 'true'));
+    await applyAnswer(detectCurrent(document, undefined)!.d, { answerable: true, confidence: 'high', choices: [1] });
+    expect(detectCurrent(document, undefined)).toBeNull();
+    // The app swaps in the next question without replacing the elements.
+    document.getElementById('q')!.textContent = 'Second question?';
+    for (const el of document.querySelectorAll('[role=radio]')) el.setAttribute('aria-checked', 'false');
+    expect(detectCurrent(document, undefined)?.d.question.prompt).toBe('Second question?');
+  });
+});
+
+describe('after an answer is submitted', () => {
+  it('does not mistake image controls for a question once the options are disabled', () => {
+    document.body.innerHTML = `<main><h2>What is the direction of the car?</h2>
+      <div><button>Zoom in</button><button>Zoom out</button><button>Enter fullscreen</button></div>
+      <div role="radiogroup"><button role="radio" aria-checked="true" disabled>Left</button>
+        <button role="radio" aria-checked="false" disabled>Right</button></div><button>Next Question</button></main>`;
+    expect(detectCurrent(document, undefined)).toBeNull();
+  });
+
+  it('separates a letter badge from its label', () => {
+    document.body.innerHTML = `<main><h2>Who was fastest?</h2><div role="radiogroup">
+      <button role="radio" aria-checked="false"><span>A</span><span>Mike</span></button>
+      <button role="radio" aria-checked="false"><span>B</span><span>Alex</span></button></div></main>`;
+    expect(detectCurrent(document, undefined)!.d.question.options!.map((o) => o.label)).toEqual(['A Mike', 'B Alex']);
+  });
+});

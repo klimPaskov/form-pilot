@@ -66,13 +66,15 @@ under Accessibility; the dot disappears and nothing is read.
 ## Use on Android
 
 - **Tap the dot:** answers the question on screen.
-- **Hold the dot:** answers every unanswered question on the page.
+- **Hold the dot until it turns teal:** answers every unanswered question on the page.
+- **Keep holding until it turns purple (2 seconds):** does every page of the form, pressing Next
+  between pages, and stops on the last page. (New and not yet tested on a device.)
 - **Tap during a run:** stops it.
 - **Socrative:** the answer is selected automatically as each question appears (switch in the app).
 - Drag the dot anywhere. It turns green when filled, amber for low confidence, red on a problem.
 
-The helper selects answers with real taps and never presses buttons on the page, so it cannot submit
-or move to the next page. Tested on one phone (Android 16) with Google Forms and Socrative.
+The helper selects answers with real taps. The only page button it ever presses is Next, in
+whole-form mode; it never presses Submit. Tested on one phone (Android 16) with Google Forms and Socrative.
 
 ## What gets sent, and what does not
 
