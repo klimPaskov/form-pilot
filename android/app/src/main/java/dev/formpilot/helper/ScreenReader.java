@@ -337,21 +337,6 @@ final class ScreenReader {
                     .append(it.group != null ? " grp" : "").append(" y=").append(r.top)
                     .append(" | ").append(it.text.length() > 70 ? it.text.substring(0, 70) : it.text).append('\n');
         }
-        for (Item it : items(root)) {
-            if (it.type == Type.CHECK) {
-                sb.append("RAW ").append(it.node.toString()).append('\n');
-                Bundle ex = it.node.getExtras();
-                sb.append("EXTRAS");
-                if (ex != null) for (String k : ex.keySet()) sb.append(' ').append(k).append('=').append(ex.get(k)).append(';');
-                try {
-                    sb.append(" getChecked=").append(AccessibilityNodeInfo.class.getMethod("getChecked").invoke(it.node));
-                } catch (ReflectiveOperationException e) {
-                    sb.append(" getChecked=n/a");
-                }
-                sb.append('\n');
-                break;
-            }
-        }
         sb.append("---- questions ----\n");
         for (Question q : read(root)) {
             sb.append(q.kind).append(q.answered() ? " [answered]" : "").append(q.onScreen(screenHeight) ? " [on screen] " : " ")

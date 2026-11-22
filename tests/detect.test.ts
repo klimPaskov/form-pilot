@@ -200,3 +200,27 @@ describe('question pictures outside the option group', () => {
     expect(q.images).toEqual([{ url: 'https://example.com/outline.jpg', caption: 'Figure for the question:' }]);
   });
 });
+
+describe('date fields and tick-box grids', () => {
+  it('treats a native date input as an answerable question and fills it', async () => {
+    document.body.innerHTML = `<div class="q"><label for="d">When did the Berlin Wall fall?</label><input id="d" type="date"></div>`;
+    const d = detectCurrent(document, undefined)!.d;
+    expect(d.question.kind).toBe('text');
+    expect(d.question.inputHint).toBe('date');
+    await applyAnswer(d, { answerable: true, confidence: 'high', texts: ['1989-11-09'] });
+    expect((document.getElementById('d') as HTMLInputElement).value).toBe('1989-11-09');
+  });
+
+  it('labels tick-box grid options by row and column', () => {
+    document.body.innerHTML = `<div role="list"><div role="listitem"><div role="heading">Where would you do these?</div>
+      <div role="group" aria-label="Dining">
+        <div role="checkbox" aria-checked="false" aria-label="Japan, vastus reale Dining" data-answer-value="Japan"></div>
+        <div role="checkbox" aria-checked="false" aria-label="Peru, vastus reale Dining" data-answer-value="Peru"></div></div>
+      <div role="group" aria-label="Skiing">
+        <div role="checkbox" aria-checked="false" aria-label="Japan, vastus reale Skiing" data-answer-value="Japan"></div>
+        <div role="checkbox" aria-checked="false" aria-label="Peru, vastus reale Skiing" data-answer-value="Peru"></div></div></div></div>`;
+    const q = detectCurrent(document, googleForms)!.d.question;
+    expect(q.kind).toBe('multi');
+    expect(q.options!.map((o) => o.label)).toEqual(['Dining: Japan', 'Dining: Peru', 'Skiing: Japan', 'Skiing: Peru']);
+  });
+});

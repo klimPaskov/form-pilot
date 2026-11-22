@@ -27,7 +27,14 @@ const list = (items: { id: number; label: string }[]): string => items.map((o) =
 export function userText(q: Question, explain: boolean): string {
   const parts = [KIND_LINE[q.kind]];
   if (q.kind === 'blanks') parts.push(`Blanks: [1] to [${q.blanks}]`);
-  if (q.inputHint === 'number') parts.push('The field only accepts a number.');
+  const FORMATS: Record<string, string> = {
+    number: 'The field only accepts a number.',
+    date: 'The field is a date picker: answer as YYYY-MM-DD.',
+    time: 'The field is a time picker: answer as HH:MM (24-hour).',
+    'datetime-local': 'The field is a date and time picker: answer as YYYY-MM-DDTHH:MM.',
+    month: 'The field is a month picker: answer as YYYY-MM.',
+  };
+  if (q.inputHint && FORMATS[q.inputHint]) parts.push(FORMATS[q.inputHint]);
   parts.push(`Question: ${q.prompt}`);
   if (q.rows?.length) parts.push(`Rows:\n${list(q.rows)}`);
   if (q.options?.length) parts.push(`Options:\n${list(q.options)}`);

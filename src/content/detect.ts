@@ -23,7 +23,7 @@ interface Unit {
 export const CONTROL_SEL =
   'input,textarea,select,[role=radio],[role=checkbox],[role=listbox],[role=textbox],[contenteditable]';
 const SKIP_TYPES = new Set(
-  'hidden password email tel file submit button reset image date datetime-local time month week color range search'.split(' '),
+  'hidden password email tel file submit button reset image week color range search'.split(' '),
 );
 const PERSONAL_AUTOCOMPLETE = /name|email|tel|address|street|postal|organization|cc-|bday|username/i;
 const PERSONAL_PROMPT =
@@ -302,6 +302,10 @@ function build(block: Element, ctls: Ctl[], adapter: Adapter | undefined, unit: 
     kind = radios.length ? 'single' : 'multi';
     target = { t: 'choice', els: optionEls, multi: !radios.length };
     options = optionEls.map((el) => optionLabel(el));
+    const rowOf = (el: HTMLElement): string => clean(el.closest('[role=group][aria-label]')?.getAttribute('aria-label'));
+    if (!radios.length && new Set(optionEls.map(rowOf)).size >= 2 && optionEls.every((el) => rowOf(el) && el.getAttribute('data-answer-value'))) {
+      options = optionEls.map((el) => `${rowOf(el)}: ${clean(el.getAttribute('data-answer-value'))}`);
+    }
   } else if (of('select').length) {
     const el = of('select')[0] as HTMLSelectElement;
     const opts = [...el.options].filter((o, i) => !o.disabled && !(i === 0 && o.value === ''));
@@ -327,7 +331,8 @@ function build(block: Element, ctls: Ctl[], adapter: Adapter | undefined, unit: 
     if (!el) return null;
     kind = el.tagName === 'INPUT' ? 'text' : 'longtext';
     target = { t: 'text', els: [el] };
-    if ((el as HTMLInputElement).type === 'number') inputHint = 'number';
+    const inputType = (el as HTMLInputElement).type;
+    if (['number', 'date', 'time', 'datetime-local', 'month'].includes(inputType)) inputHint = inputType;
   }
   if (options && options.length < (kind === 'dropdown' ? 1 : 2) && kind !== 'matching') return null;
 

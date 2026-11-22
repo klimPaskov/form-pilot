@@ -38,6 +38,31 @@ const ask: Ask = async (q) => {
     await fillPage(driver, ask, { cancelled: () => false, progress: () => {} }, report);
     return { report, text: summary(report, false), questions };
   },
+  /**
+   * Like fillPage, but with real answers from Claude via the local dev server (scripts/serve.mjs
+   * with .dev/ask.mjs built). Returns a per-question trace of what was asked and answered.
+   */
+  async fillPageReal(endpoint = 'http://localhost:4173/ask') {
+    const trace: unknown[] = [];
+    const real: Ask = async (q) => {
+      const res = await fetch(endpoint, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(q) });
+      const a = await res.json();
+      trace.push({
+        kind: q.kind,
+        prompt: q.prompt.slice(0, 90),
+        options: q.options?.map((o) => o.label.slice(0, 30)),
+        rows: q.rows?.map((r) => r.label.slice(0, 30)),
+        images: q.images?.length ?? 0,
+        needsShot: !!q.needsShot,
+        answer: a,
+      });
+      if (a.error) throw new Error(a.error);
+      return a;
+    };
+    const report: RunReport = { filled: 0, skipped: 0, failed: 0, pages: 1 };
+    await fillPage(driver, real, { cancelled: () => false, progress: () => {} }, report);
+    return { report, text: summary(report, false), trace };
+  },
   next: () => page.next(),
   signature: () => page.signature(),
 };

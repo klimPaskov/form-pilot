@@ -1,101 +1,122 @@
 # Form Pilot
 
-A Chrome extension that answers the current form or quiz question with Claude. One shortcut press
-handles exactly one question: it finds the question, asks Claude once, fills in the answer and stops.
-It never submits a form or moves to the next page.
+Answers form and quiz questions with Claude. It reads the question on the page, asks Claude once, and
+fills in the answer. **It never presses Submit** — that is always left to you.
 
-## Install (under a minute)
+- **Desktop:** a Chrome extension, driven by keyboard shortcuts.
+- **Android:** a helper app that works on top of regular Chrome, driven by a floating dot.
 
-1. Download `form-pilot.zip` from the [latest release](https://github.com/klimPaskov/form-pilot/releases/latest) and unzip it anywhere.
-2. Open `chrome://extensions`, switch on **Developer mode** (top right).
+You need your own [Anthropic API key](https://console.anthropic.com/). Nothing in the downloads
+contains one.
+
+| Works on | Desktop extension | Android helper |
+| --- | --- | --- |
+| Google Forms | every question type except file upload | all except date, time and file upload |
+| Socrative | multiple choice, true/false, pictures | multiple choice, true/false, pictures |
+| Other sites | standard HTML forms; anything else is best effort | best effort |
+
+## Install on a computer (about a minute)
+
+1. Download `form-pilot.zip` from the [latest release](https://github.com/klimPaskov/form-pilot/releases/latest)
+   and unzip it to a folder you will keep (Chrome runs the extension from that folder).
+2. Open `chrome://extensions` and switch on **Developer mode** (top right).
 3. Click **Load unpacked** and pick the unzipped folder.
+4. Click the Form Pilot icon and paste your API key into **API key**.
 
-That is all: no settings page opens and nothing appears on pages. Press **Alt+Q** on a page with a
-question. Release builds contain no API key: click the extension icon once and paste your Anthropic
-key. A private build can have the key baked in (see Build).
+Nothing appears on pages and no settings page opens. On a managed computer where Developer mode is
+blocked by an administrator, the extension cannot be installed, and Form Pilot does not try to get
+around that.
 
-On a managed computer where Developer mode is disabled by the administrator, the extension cannot be
-installed. That restriction is intentional and Form Pilot does not try to get around it.
+To update: download the new zip, replace the folder's contents, and click the reload arrow on the
+Form Pilot card in `chrome://extensions`.
 
-### Android
+## Use on a computer
 
-Chrome for Android does not run extensions. For regular Chrome there is a separate helper app,
-`form-pilot-helper.apk` (source in `android/`), which works on top of Chrome through Android's
-accessibility service:
+| Shortcut | What it does |
+| --- | --- |
+| **Alt+Q** | Answers one question: the one your cursor is in, otherwise the first unanswered one on screen |
+| **Alt+W** | Answers every unanswered question on the page |
+| **Alt+Shift+W** | Answers every page of a multi-page form, pressing Next between pages; stops on the last page |
 
-1. Install the APK (allow installs from your browser or file manager when asked).
-2. Open Form Pilot, paste your Anthropic API key, then switch **Form Pilot** on under
-   Settings > Accessibility. If the switch is greyed out, open the app's App info, tap the three
-   dots and choose "Allow restricted settings".
-3. A blue dot appears over other apps. In Chrome, tap it to answer the question on screen, or hold
-   it to answer every unanswered question on the page. On Socrative the answer is selected
-   automatically as each question appears (switch in the app).
+- Questions that already have an answer are left alone. Clear an answer to have it redone.
+- Pressing any shortcut during a page or form run stops it.
+- On **Socrative**, the answer is selected automatically as each question appears (switch it off in
+  the popup). "Submit Answer" is still yours to press.
+- A small dot in the bottom-right corner shows progress: grey while working, green when filled, amber
+  for a low-confidence answer, red with a short message on a problem. Click it to dismiss.
+- Change the keys at `chrome://extensions/shortcuts`. If a shortcut does nothing after an update, set
+  it there once.
 
-The helper selects answers with real taps and never presses buttons on the page, so it cannot
-submit. It handles multiple choice, checkboxes, dropdowns, grids and text answers; date and time
-questions are left to you. Tested on Google Forms and Socrative on one phone (Android 16).
+The popup (extension icon) has the settings: on/off, model, effort, indicator style, explanations,
+web search, screenshot fallback, Socrative auto mode, and a Run button for each mode.
 
-Alternatively, an Android browser that runs extensions can load the extension itself. Each release
-has a signed `form-pilot.crx` for browsers that install from a file (not verified on a device):
+## Install on Android
 
-- **Microsoft Edge Canary**: Settings > About > tap the build number five times to unlock Developer
-  options, then "Extension install by crx" and pick `form-pilot.crx`.
-- Other Chromium-based browsers with extension support (for example Kiwi, Quetta, Lemur) may accept
-  the `.crx` or the `.zip` from their extensions page.
+Chrome for Android cannot run extensions, so there is a separate helper app.
 
-On Android the extension switches on a small floating button on every page (there is no keyboard
-shortcut on a phone): one tap answers one question. It can be turned off in the popup. This route
-has not been verified on a device yet.
+1. Download `form-pilot-helper.apk` from the [latest release](https://github.com/klimPaskov/form-pilot/releases/latest)
+   and install it (allow installs from your browser or file manager when asked).
+2. Open **Form Pilot** and paste your API key.
+3. Go to Settings > Accessibility, find **Form Pilot** and switch it on. If the switch is greyed out,
+   open the app's App info, tap the three dots and choose "Allow restricted settings".
 
-## Use
+A semi-transparent blue dot appears over other apps. To switch the helper off, turn Form Pilot off
+under Accessibility; the dot disappears and nothing is read.
 
-- **Alt+Q** answers the question you are on: the unanswered question that has keyboard focus,
-  otherwise the first unanswered one on screen.
-- **Alt+W** answers every unanswered question on the open page.
-- **Alt+Shift+W** answers every page of a multi-page form, pressing "Next" between pages. It stops
-  on the last page, and also if a page does not advance (for example a required question it could
-  not answer).
-- **Socrative auto mode** (on by default, switch in the popup): as each new question appears, the
-  answer is selected without a key press. "Submit Answer" is still yours to press.
-- No mode ever submits: the final Submit is always yours. Questions that already have an answer are
-  left alone. Pressing any shortcut during a page or form run stops it.
-- Change the keys at `chrome://extensions/shortcuts` (the popup has a button for it). If you
-  installed an earlier version, the two new shortcuts may need to be set there once.
-- A small dot in the bottom-right corner shows progress: grey while working, green when filled,
-  amber for a low-confidence answer, red with a short message on errors. Click it to dismiss.
-- The popup (extension icon) is optional: enable/disable, model, effort, indicator style,
-  explanations, web search, screenshot fallback, API key.
-- If a page has no recognisable form fields, a screenshot is sent instead and the answer is shown
-  next to the dot rather than filled in.
+## Use on Android
 
-## Build
+- **Tap the dot:** answers the question on screen.
+- **Hold the dot:** answers every unanswered question on the page.
+- **Tap during a run:** stops it.
+- **Socrative:** the answer is selected automatically as each question appears (switch in the app).
+- Drag the dot anywhere. It turns green when filled, amber for low confidence, red on a problem.
+
+The helper selects answers with real taps and never presses buttons on the page, so it cannot submit
+or move to the next page. Tested on one phone (Android 16) with Google Forms and Socrative.
+
+## What gets sent, and what does not
+
+- Only the question text, its answer options and any picture in the question go to the Anthropic API.
+- Pictures: the extension sends the image file the page embeds, and falls back to a screenshot of the
+  question when it cannot fetch it. The Android helper always uses a screenshot of the question.
+- The extension's page script is injected only when you press a shortcut (or, with auto mode on, on
+  Socrative). The Android helper reads the screen only when you use the dot, or on Socrative in auto mode.
+- Your API key is stored only on your device.
+
+## Limits
+
+- Claude can be wrong. An amber dot means low confidence: check those answers.
+- Validation messages are not read, so an answer a form rejects is not noticed.
+- Date and time questions on Android, and file uploads everywhere, are left to you.
+- Kahoot and Quizizz have not been tested.
+
+## Build from source
 
 ```
 npm install
-npm test          # unit tests (jsdom)
-npm run package   # builds dist/ and form-pilot.zip
+npm test                 # unit tests
+npm run package:public   # dist/ + form-pilot.zip and form-pilot.crx, without an API key
+npm run package          # same, with the key from config.local.json baked in (private use only)
 ```
 
-To bake your key into a private build, create `config.local.json` (`{"apiKey": "sk-ant-..."}`) before
-building. The key is then readable by anyone who has the zip, so keep that file private and set a
-spend limit on the key in the Anthropic Console.
+Android helper (needs the Android SDK and Gradle 8.9 or later): `cd android && gradle assembleRelease`.
 
-Manual test page: `node scripts/serve.mjs`, then open http://localhost:4173/test-pages/quiz.html.
+`config.local.json` (`{"apiKey": "sk-ant-..."}`) is git-ignored. A build with a baked-in key is
+readable by anyone who has the file, so keep it private and set a spend limit on the key.
 
 ## How it is organised
 
-| Module | File | Job |
+| Part | Where | Job |
 | --- | --- | --- |
-| Shortcut controller | `src/background/index.ts` | Shortcut, single-flight guard, orchestration, toolbar badge |
-| Question detection | `src/content/detect.ts` | Finds controls, groups them into questions, reads text/options, picks the current one |
-| Site adapters | `src/content/adapters/` | Per-site refinements (Google Forms, Socrative) on top of the universal detector |
+| Shortcut controller | `src/background/index.ts` | Shortcuts, single-flight guard, orchestration, toolbar badge |
+| Multi-question runner | `src/background/runner.ts` | Whole-page and whole-form modes |
+| Question detection | `src/content/detect.ts` | Finds controls, groups them into questions, reads text and options |
+| Site adapters | `src/content/adapters/` | Per-site refinements (Google Forms, Socrative) |
 | AI reasoning | `src/ai/` | `Provider` interface, Claude implementation, prompt and JSON schema |
-| Answer mapping | `src/content/apply.ts` | Validates the model's answer against the question |
-| Form interaction | `src/content/fill.ts` | Clicks, typing, dropdowns, in a way React-style pages notice |
-| Indicator | `src/content/indicator.ts` | The corner dot |
+| Answer mapping | `src/content/apply.ts` | Checks the answer against the question, confirms it registered |
+| Form interaction | `src/content/fill.ts` | Clicks, typing, dropdowns |
+| Android helper | `android/` | Accessibility service: screen reader, Claude client, tap gestures |
+| Dev tools | `scripts/`, `test-pages/` | Local test quiz, and a harness for exercising live pages |
 
-The page script is injected only when the shortcut is pressed; nothing runs on pages otherwise. Only
-the question text, its options and any figure in it are sent to the Anthropic API.
-
-To support a new site, add an adapter (`blocks`, `prompt`, `skip` are all optional) and register it
-in `src/content/adapters/index.ts`. To support another AI provider, implement `Provider`.
+To support another site, add an adapter (`blocks`, `prompt`, `next`, `skip` are all optional) and
+register it in `src/content/adapters/index.ts`. To support another AI provider, implement `Provider`.

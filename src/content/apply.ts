@@ -48,12 +48,12 @@ export async function applyAnswer(d: Detected, a: Answer): Promise<ApplyResult> 
           await wait(40); // let the page re-render between clicks
         }
       }
-      // Where the widget exposes its state, confirm the page actually accepted the selection.
-      await wait(60);
+      // Where the widget exposes its state, confirm the page actually accepted the selection. Some
+      // pages update that state a moment after the click, so allow it a little time.
       const stateful = (el: HTMLElement): boolean => el.tagName === 'INPUT' || el.hasAttribute('aria-checked');
-      if ([...want].some((id) => stateful(t.els[id - 1]) && !isChecked(t.els[id - 1]))) {
-        return fail('The page did not accept the selection');
-      }
+      const pending = (): boolean => [...want].some((id) => stateful(t.els[id - 1]) && !isChecked(t.els[id - 1]));
+      for (let i = 0; i < 20 && pending(); i++) await wait(80);
+      if (pending()) return fail('The page did not accept the selection');
       message = labels([...want]);
       break;
     }
