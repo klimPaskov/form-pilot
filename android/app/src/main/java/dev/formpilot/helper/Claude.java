@@ -55,7 +55,8 @@ final class Claude {
                     + "- Numbers in \"choices\" refer to the numbered list of options in the message.\n"
                     + "- Written answers go in \"texts\", exactly as they should be typed into the field, in the language of the question, with no preamble. Keep short answers as brief as the question allows; for long answers write a clear, complete response of a few sentences unless the question asks for more.\n"
                     + "- \"confidence\" is how sure you are that the answer is correct.\n"
-                    + "- Set \"answerable\" to false only if the question asks for the user's own personal details or opinions you cannot know, or cannot be answered at all.";
+                    + "- If the question asks for an opinion, preference or self-rating, pick a reasonable, plausible answer instead of declining.\n"
+                    + "- Set \"answerable\" to false only if the question asks for identifying personal details (name, e-mail, ID, phone) or cannot be answered at all.";
 
     private final AnthropicClient client;
     private final String model;
@@ -123,6 +124,9 @@ final class Claude {
         switch (q.kind) {
             case SINGLE:
                 sb.append("Single choice - pick exactly one option.\n");
+                break;
+            case DROPDOWN:
+                sb.append("Dropdown - pick exactly one option (never a placeholder such as 'Choose').\n");
                 break;
             case MULTI:
                 sb.append("Multiple select - pick every option that applies.\n");

@@ -54,6 +54,12 @@ public class MainActivity extends Activity {
         text(root, "\nEffort (lower is faster)", 14);
         root.addView(spinner(Prefs.EFFORTS, prefs.effort(), value -> prefs.set("effort", value)));
 
+        android.widget.CheckBox auto = new android.widget.CheckBox(this);
+        auto.setText("Auto-answer on Socrative (selects the answer as each question appears; Submit Answer stays yours)");
+        auto.setChecked(prefs.autoSocrative());
+        auto.setOnCheckedChangeListener((button, on) -> prefs.set("autoSocrative", on));
+        root.addView(auto);
+
         text(root, "\nHow to use\n"
                 + "1. Turn on Form Pilot under Accessibility (button above). On Android 13 or later, if the switch is greyed out: "
                 + "open this app's App info, tap the three dots, and choose \"Allow restricted settings\".\n"

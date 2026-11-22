@@ -19,8 +19,24 @@ installed. That restriction is intentional and Form Pilot does not try to get ar
 
 ### Android
 
-Chrome for Android does not run extensions, so Form Pilot needs an Android browser that does.
-Each release also has a signed `form-pilot.crx` for browsers that install from a file:
+Chrome for Android does not run extensions. For regular Chrome there is a separate helper app,
+`form-pilot-helper.apk` (source in `android/`), which works on top of Chrome through Android's
+accessibility service:
+
+1. Install the APK (allow installs from your browser or file manager when asked).
+2. Open Form Pilot, paste your Anthropic API key, then switch **Form Pilot** on under
+   Settings > Accessibility. If the switch is greyed out, open the app's App info, tap the three
+   dots and choose "Allow restricted settings".
+3. A blue dot appears over other apps. In Chrome, tap it to answer the question on screen, or hold
+   it to answer every unanswered question on the page. On Socrative the answer is selected
+   automatically as each question appears (switch in the app).
+
+The helper selects answers with real taps and never presses buttons on the page, so it cannot
+submit. It handles multiple choice, checkboxes, dropdowns, grids and text answers; date and time
+questions are left to you. Tested on Google Forms and Socrative on one phone (Android 16).
+
+Alternatively, an Android browser that runs extensions can load the extension itself. Each release
+has a signed `form-pilot.crx` for browsers that install from a file (not verified on a device):
 
 - **Microsoft Edge Canary**: Settings > About > tap the build number five times to unlock Developer
   options, then "Extension install by crx" and pick `form-pilot.crx`.

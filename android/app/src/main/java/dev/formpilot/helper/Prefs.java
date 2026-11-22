@@ -26,6 +26,15 @@ final class Prefs {
         return sp.getString("effort", "medium");
     }
 
+    /** Select the answer automatically when Socrative shows a new question. */
+    boolean autoSocrative() {
+        return sp.getBoolean("autoSocrative", true);
+    }
+
+    void set(String key, boolean value) {
+        sp.edit().putBoolean(key, value).apply();
+    }
+
     void set(String key, String value) {
         sp.edit().putString(key, value).apply();
     }

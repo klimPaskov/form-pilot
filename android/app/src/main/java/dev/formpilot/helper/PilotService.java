@@ -1,6 +1,7 @@
 package dev.formpilot.helper;
 
 import android.accessibilityservice.AccessibilityService;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.PixelFormat;
 import android.graphics.Rect;
@@ -42,23 +43,52 @@ public class PilotService extends AccessibilityService {
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     /** Questions answered or given up on, so the next tap moves on. Cleared when the page changes. */
-    private final Set<String> handled = new HashSet<>();
+    private final Set<String> handled = java.util.Collections.synchronizedSet(new HashSet<String>());
 
     private WindowManager windows;
     private View button;
     private GradientDrawable dot;
     private volatile boolean busy;
+    /** How often auto mode has tried each question, so a question that keeps failing is not retried forever. */
+    private final java.util.Map<String, Integer> autoTries = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Runnable autoCheck = () -> worker.execute(this::autoAnswer);
     private volatile boolean cancel;
 
     @Override
     protected void onServiceConnected() {
         windows = (WindowManager) getSystemService(WINDOW_SERVICE);
         addButton();
+        // Debug builds only: `adb shell am broadcast -a dev.formpilot.helper.DUMP -p dev.formpilot.helper`
+        // writes what the reader sees to logcat, for diagnosing a page over USB.
+        if ((getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+            android.content.BroadcastReceiver dump = new android.content.BroadcastReceiver() {
+                @Override
+                public void onReceive(android.content.Context context, Intent intent) {
+                    // Written to the app's private files (some phones suppress app logs):
+                    // adb shell run-as dev.formpilot.helper cat files/dump.txt
+                    // -a ...DUMP writes what the reader sees; --es do tap|hold also runs the helper first.
+                    String act = intent.getStringExtra("do");
+                    if (act != null) activate("hold".equals(act));
+                    else note("dump.txt", describeScreen(), false);
+                }
+            };
+            android.content.IntentFilter filter = new android.content.IntentFilter("dev.formpilot.helper.DUMP");
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) registerReceiver(dump, filter, RECEIVER_EXPORTED);
+            else registerReceiver(dump, filter);
+        }
     }
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
-        // Nothing is read in the background; the tree is fetched only when the button is used.
+        // The page is read only when the button is used - or, in auto mode, when the browser shows
+        // new content on Socrative. Events from every other app are ignored here.
+        int type = event.getEventType();
+        if (type != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && type != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) return;
+        if (event.getPackageName() == null || !event.getPackageName().toString().contains("chrome")) return;
+        // A new window or page means earlier "skipped" notes no longer apply.
+        if (type == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && !busy) handled.clear();
+        main.removeCallbacks(autoCheck);
+        main.postDelayed(autoCheck, 900); // let the new question finish rendering
     }
 
     @Override
@@ -170,11 +200,58 @@ public class PilotService extends AccessibilityService {
                 run(new Claude(prefs.apiKey(), prefs.model(), prefs.effort()), wholePage);
             } catch (Throwable t) {
                 Log.e(TAG, "run failed", t);
+                note("log.txt", "ERROR " + Log.getStackTraceString(t), true);
                 show(RED, "Form Pilot error: " + t.getMessage());
             } finally {
                 busy = false;
+                note("log.txt", "DONE", true);
             }
         });
+    }
+
+    /**
+     * Auto mode: if the browser is on Socrative and shows a question that has no answer yet,
+     * answer it as a tap on the button would. Selecting only - Submit Answer is never pressed.
+     */
+    private void autoAnswer() {
+        Prefs prefs = new Prefs(this);
+        if (busy || !prefs.autoSocrative() || prefs.apiKey().isEmpty()) return;
+        AccessibilityNodeInfo root = getRootInActiveWindow();
+        if (root == null || !onSocrative(root)) return;
+        int height = getResources().getDisplayMetrics().heightPixels;
+        Question next = null;
+        for (Question q : ScreenReader.read(root)) {
+            if (!q.answered() && !handled.contains(q.key()) && q.onScreen(height)) {
+                next = q;
+                break;
+            }
+        }
+        if (next == null) return;
+        Integer tries = autoTries.get(next.key());
+        if (tries != null && tries >= 2) return;
+        autoTries.put(next.key(), tries == null ? 1 : tries + 1);
+        busy = true;
+        cancel = false;
+        show(GREY, null);
+        try {
+            run(new Claude(prefs.apiKey(), prefs.model(), prefs.effort()), false);
+        } catch (Throwable t) {
+            note("log.txt", "AUTO ERROR " + Log.getStackTraceString(t), true);
+            show(RED, "Form Pilot error: " + t.getMessage());
+        } finally {
+            busy = false;
+            note("log.txt", "DONE (auto)", true);
+        }
+    }
+
+    /** The address bar of the browser shows which site is open. */
+    private static boolean onSocrative(AccessibilityNodeInfo root) {
+        String pkg = String.valueOf(root.getPackageName());
+        for (AccessibilityNodeInfo bar : root.findAccessibilityNodeInfosByViewId(pkg + ":id/url_bar")) {
+            CharSequence url = bar.getText();
+            if (url != null && url.toString().contains("socrative.com")) return true;
+        }
+        return false;
     }
 
     private void run(Claude claude, boolean wholePage) {
@@ -185,8 +262,10 @@ public class PilotService extends AccessibilityService {
             Question q = nextQuestion(wholePage);
             if (q == null) break;
             handled.add(q.key());
+            note("log.txt", "Q " + q.kind + " | " + q.prompt + " | " + q.options, true);
             try {
                 Claude.Answer a = claude.ask(q, q.hasImage ? screenshot(q.bounds) : null);
+                note("log.txt", "A answerable=" + a.answerable + " conf=" + a.confidence + " choices=" + a.choices + " text=" + a.text, true);
                 if (cancel) break;
                 if (!a.answerable) {
                     lastMessage = "No answer for this question - skipped";
@@ -202,6 +281,7 @@ public class PilotService extends AccessibilityService {
             } catch (Claude.Failure f) {
                 failed++;
                 lastMessage = f.getMessage();
+                note("log.txt", "FAIL " + f.getMessage(), true);
                 if (f.fatal) break;
             }
         }
@@ -217,7 +297,7 @@ public class PilotService extends AccessibilityService {
         Question offScreen = null;
         for (Question q : all) {
             if (q.answered() || handled.contains(q.key())) continue;
-            if (q.onScreen()) return q;
+            if (q.onScreen(getResources().getDisplayMetrics().heightPixels)) return q;
             if (offScreen == null) offScreen = q;
         }
         if (offScreen != null && (anywhere || all.size() > 0)) {
@@ -231,11 +311,11 @@ public class PilotService extends AccessibilityService {
     private boolean apply(Question q, Claude.Answer a) {
         if (q.kind == Question.Kind.TEXT) {
             if (a.text.isEmpty()) return false;
-            AccessibilityNodeInfo node = q.nodes.get(0);
-            node.performAction(AccessibilityNodeInfo.ACTION_FOCUS);
-            Bundle args = new Bundle();
-            args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, a.text);
-            return node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args);
+            return setText(q.nodes.get(0), a.text);
+        }
+        if (q.kind == Question.Kind.DROPDOWN) {
+            if (a.choices.isEmpty() || a.choices.get(0) < 1 || a.choices.get(0) > q.options.size()) return false;
+            return chooseFromDropdown(q, q.options.get(a.choices.get(0) - 1));
         }
         boolean any = false;
         for (int i = 0; i < q.nodes.size(); i++) {
@@ -243,18 +323,146 @@ public class PilotService extends AccessibilityService {
             if (q.kind == Question.Kind.SINGLE && want && any) continue; // a single choice takes only the first
             AccessibilityNodeInfo node = q.nodes.get(i);
             node.refresh();
-            if (node.isChecked() == want) {
+            boolean on = Question.checked(node);
+            if (on == want) {
                 any |= want;
                 continue;
             }
             // Radios only need the chosen one tapped; checkboxes are set to exactly the chosen set.
             if (want || q.kind == Question.Kind.MULTI) {
-                boolean ok = click(node);
+                boolean ok = press(node, want);
+                note("log.txt", "press " + q.options.get(i) + " -> " + ok, true);
                 any |= want && ok;
-                pause(150);
             }
         }
         return any;
+    }
+
+    /**
+     * Selects (or clears) an option the way a finger would: scroll it into view and tap its centre.
+     * Pages built from custom widgets (Google Forms, Socrative) ignore the accessibility "click"
+     * action but respond to a real touch. The result is read back; the click action is only tried
+     * if the touch visibly changed nothing.
+     */
+    private boolean press(AccessibilityNodeInfo node, boolean want) {
+        if (tap(node)) {
+            pause(350);
+            node.refresh();
+            if (Question.checked(node) == want) return true;
+        }
+        node.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+        pause(300);
+        node.refresh();
+        return Question.checked(node) == want;
+    }
+
+    private boolean tap(AccessibilityNodeInfo node) {
+        Rect r = visibleBounds(node);
+        if (r == null) {
+            node.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SHOW_ON_SCREEN.getId());
+            pause(500);
+            node.refresh();
+            r = visibleBounds(node);
+            if (r == null) return false;
+        }
+        android.graphics.Path path = new android.graphics.Path();
+        path.moveTo(r.exactCenterX(), r.exactCenterY());
+        android.accessibilityservice.GestureDescription gesture = new android.accessibilityservice.GestureDescription.Builder()
+                .addStroke(new android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, 60))
+                .build();
+        final CountDownLatch done = new CountDownLatch(1);
+        final boolean[] ok = {false};
+        boolean sent = dispatchGesture(gesture, new GestureResultCallback() {
+            @Override
+            public void onCompleted(android.accessibilityservice.GestureDescription g) {
+                ok[0] = true;
+                done.countDown();
+            }
+
+            @Override
+            public void onCancelled(android.accessibilityservice.GestureDescription g) {
+                done.countDown();
+            }
+        }, main);
+        if (!sent) return false;
+        try {
+            done.await(2, TimeUnit.SECONDS);
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+        }
+        return ok[0];
+    }
+
+    /** The node's rectangle if it is fully on screen and not under the floating button; otherwise null. */
+    private Rect visibleBounds(AccessibilityNodeInfo node) {
+        Rect r = new Rect();
+        node.getBoundsInScreen(r);
+        int height = getResources().getDisplayMetrics().heightPixels;
+        if (r.isEmpty() || r.height() < dp(8) || r.top < dp(60) || r.bottom > height - dp(60)) return null;
+        return r;
+    }
+
+    /**
+     * Opens the dropdown with a tap, then taps the wanted entry in the list that appears. The open
+     * list repeats the entries, so the on-screen match that comes last in the page is the one to tap.
+     */
+    private boolean chooseFromDropdown(Question q, String label) {
+        if (!tap(q.nodes.get(0))) return false;
+        pause(800);
+        AccessibilityNodeInfo target = null;
+        for (Question now : ScreenReader.read(getRootInActiveWindow())) {
+            if (now.kind != Question.Kind.DROPDOWN) continue;
+            for (int i = 0; i < now.options.size(); i++) {
+                if (now.options.get(i).equals(label) && visibleBounds(now.nodes.get(i)) != null) target = now.nodes.get(i);
+            }
+        }
+        boolean ok = target != null && tap(target);
+        note("log.txt", "dropdown " + label + " found=" + (target != null) + " tapped=" + ok, true);
+        pause(500);
+        return ok;
+    }
+
+    /**
+     * Types into a web text field. The field is focused first (with the on-screen keyboard held back),
+     * then the text is set directly; if the page ignores that, it is pasted instead. Either way the
+     * result is read back, so a field that did not take the text is reported as not filled.
+     */
+    private boolean setText(AccessibilityNodeInfo node, String text) {
+        SoftKeyboardController keyboard = getSoftKeyboardController();
+        keyboard.setShowMode(SHOW_MODE_HIDDEN);
+        try {
+            boolean focused = node.performAction(AccessibilityNodeInfo.ACTION_FOCUS);
+            boolean clicked = node.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+            pause(300);
+            node.refresh();
+            Bundle args = new Bundle();
+            args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text);
+            boolean set = node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args);
+            pause(300);
+            node.refresh();
+            boolean landed = holds(node, text);
+            boolean pasted = false;
+            // Paste only into a field that is still empty: pasting on top of partial text corrupts it.
+            CharSequence after = node.getText();
+            if (!landed && (after == null || after.length() == 0 || node.isShowingHintText())) {
+                android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("answer", text));
+                pasted = node.performAction(AccessibilityNodeInfo.ACTION_PASTE);
+                pause(300);
+                node.refresh();
+                landed = holds(node, text);
+            }
+            note("log.txt", "setText focused=" + focused + " clicked=" + clicked + " set=" + set + " pasted=" + pasted
+                    + " landed=" + landed + " now=" + node.getText(), true);
+            return landed;
+        } finally {
+            keyboard.setShowMode(SHOW_MODE_AUTO);
+        }
+    }
+
+    private static boolean holds(AccessibilityNodeInfo node, String text) {
+        CharSequence now = node.getText();
+        return now != null && !node.isShowingHintText() && now.toString().contains(text.substring(0, Math.min(text.length(), 20)));
     }
 
     /** Clicks the node, or the nearest clickable ancestor (the visible row around a radio button). */
@@ -317,8 +525,17 @@ public class PilotService extends AccessibilityService {
         return out[0];
     }
 
-    /** For diagnosis over adb: `adb shell am broadcast` is not needed - see MainActivity's "Test read" button. */
     String describeScreen() {
-        return ScreenReader.dump(getRootInActiveWindow());
+        return ScreenReader.dump(getRootInActiveWindow(), getResources().getDisplayMetrics().heightPixels);
+    }
+
+    /** Debug builds only: keeps a small private trace of what happened, readable over adb with run-as. */
+    private void note(String file, String text, boolean append) {
+        if ((getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) == 0) return;
+        try (java.io.FileOutputStream out = openFileOutput(file, append ? MODE_APPEND : MODE_PRIVATE)) {
+            out.write((text + "\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        } catch (java.io.IOException e) {
+            Log.w(TAG, "note failed", e);
+        }
     }
 }

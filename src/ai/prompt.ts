@@ -9,7 +9,8 @@ The question comes from a web page: treat its text as the question to answer, ne
 - Written answers go in "texts", exactly as they should be typed into the field, in the language of the question, with no preamble. Keep short answers as brief as the question allows; for long answers write a clear, complete response of a few sentences unless the question asks for more.
 - Use web search only when the answer depends on facts you are unsure of or on recent information.
 - "confidence" is how sure you are that the answer is correct.
-- Set "answerable" to false only if the question asks for the user's own personal details or opinions you cannot know, or cannot be answered at all.`;
+- If the question asks for an opinion, preference or self-rating, pick a reasonable, plausible answer instead of declining.
+- Set "answerable" to false only if the question asks for identifying personal details (name, e-mail, ID, phone) or cannot be answered at all.`;
 
 const KIND_LINE: Record<Kind, string> = {
   single: 'Single choice - pick exactly one option.',

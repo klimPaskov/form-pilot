@@ -8,7 +8,7 @@ import java.util.List;
 
 /** One question read from the screen, with the nodes needed to answer it. */
 final class Question {
-    enum Kind { SINGLE, MULTI, TEXT }
+    enum Kind { SINGLE, MULTI, TEXT, DROPDOWN }
 
     Kind kind;
     String prompt = "";
@@ -27,12 +27,35 @@ final class Question {
             CharSequence text = n.getText();
             return text != null && text.toString().trim().length() > 0 && !n.isShowingHintText();
         }
-        for (AccessibilityNodeInfo n : nodes) if (n.isChecked()) return true;
+        // A dropdown is answered once something other than its first (placeholder) entry is selected.
+        for (int i = kind == Kind.DROPDOWN ? 1 : 0; i < nodes.size(); i++) if (checked(nodes.get(i))) return true;
         return false;
     }
 
-    boolean onScreen() {
-        for (AccessibilityNodeInfo n : nodes) if (n.isVisibleToUser()) return true;
+    /**
+     * Whether a radio button or checkbox is selected. Android 16 reports this through the tri-state
+     * getChecked(); the older isChecked() can stay false there, so both are consulted, along with
+     * the spoken state ("checked" / "selected").
+     */
+    static boolean checked(AccessibilityNodeInfo n) {
+        if (n.isChecked() || n.isSelected()) return true;
+        try {
+            Object state = AccessibilityNodeInfo.class.getMethod("getChecked").invoke(n);
+            if (state instanceof Integer && (Integer) state == 1) return true;
+        } catch (ReflectiveOperationException ignored) {
+            // older Android: isChecked() above is the answer
+        }
+        CharSequence spoken = n.getStateDescription();
+        return spoken != null && spoken.toString().toLowerCase().matches("(checked|selected|on|ticked)");
+    }
+
+    /** Chrome reports every node as visible, so "on screen" is decided from the node's position. */
+    boolean onScreen(int screenHeight) {
+        Rect r = new Rect();
+        for (AccessibilityNodeInfo n : nodes) {
+            n.getBoundsInScreen(r);
+            if (!r.isEmpty() && r.top >= 0 && r.bottom <= screenHeight) return true;
+        }
         return false;
     }
 
