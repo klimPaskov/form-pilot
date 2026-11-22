@@ -8,7 +8,7 @@ const NOT_A_CHOICE =
   /^(submit|next|back|prev|continue|skip|finish|done|cancel|close|save|send|ok|log ?in|log ?out|sign|menu|clear|reset|start|hint|check|help|share|settings|more)/i;
 const SEL = 'button,[role=button],[role=option],[role=menuitemradio]';
 const label = (b: HTMLElement): string =>
-  readText(b, { keepButtons: true, cap: 300 }) || (b.getAttribute('aria-label') ?? '').trim();
+  readText(b, { cap: 300 }) || (b.getAttribute('aria-label') ?? '').trim();
 
 export function buttonChoices(root: ParentNode, site: string): Detected | null {
   const groups = new Map<Element, HTMLElement[]>();

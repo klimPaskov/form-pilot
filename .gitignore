@@ -4,3 +4,8 @@ form-pilot.zip
 form-pilot.crx
 key.pem
 config.local.json
+
+android/local.properties
+android/.gradle/
+android/build/
+android/app/build/

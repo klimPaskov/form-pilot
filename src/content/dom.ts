@@ -12,7 +12,6 @@ export interface ReadOpts {
   labelled?: Set<Element>;
   /** Elements replaced by a marker such as "[1]" (fill-in-the-blank inputs). */
   markers?: Map<Element, string>;
-  keepButtons?: boolean;
   cap?: number;
 }
 
@@ -40,12 +39,16 @@ export function readText(root: Element | null | undefined, opts: ReadOpts = {}):
       return;
     }
     if (opts.exclude?.has(e) || e.hidden) return;
-    if (SKIP_TAGS.has(e.tagName) && !(opts.keepButtons && e.tagName === 'BUTTON' && e === root)) return;
+    // Buttons inside a block are controls, not question text - but a button read on its own
+    // (an answer choice such as <button role="radio">) is read for its label.
+    if (SKIP_TAGS.has(e.tagName) && !(e.tagName === 'BUTTON' && e === root)) return;
     const role = e.getAttribute('role');
     if (e !== root && (role === 'option' || role === 'listbox')) return;
     if (e.tagName === 'IMG') out += ` ${e.getAttribute('alt') ?? ''} `;
+    const block = !INLINE_TAGS.has(e.tagName);
+    if (block) out += ' ';
     for (const c of e.childNodes) walk(c);
-    if (!INLINE_TAGS.has(e.tagName)) out += ' ';
+    if (block) out += ' ';
   };
   walk(root);
   return clean(out).slice(0, cap);

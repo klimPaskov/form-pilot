@@ -11,7 +11,7 @@ export function findNext(root: ParentNode, adapter: Adapter | undefined): HTMLEl
   if (adapter?.next) return adapter.next(root);
   for (const el of root.querySelectorAll<HTMLElement>('button,[role=button],input[type=button],a')) {
     if ((el as HTMLButtonElement).disabled || el.getAttribute('aria-disabled') === 'true' || !isVisible(el)) continue;
-    const text = readText(el, { keepButtons: true, cap: 60 }) || (el as HTMLInputElement).value || el.getAttribute('aria-label') || '';
+    const text = readText(el, { cap: 60 }) || (el as HTMLInputElement).value || el.getAttribute('aria-label') || '';
     if (NEXT.test(text.trim()) && !SUBMIT.test(text)) return el;
   }
   return null;

@@ -339,12 +339,13 @@ function build(block: Element, ctls: Ctl[], adapter: Adapter | undefined, unit: 
   let prompt = adapter?.prompt?.(block) ?? '';
   if (!prompt) prompt = readText(unit.cloze ?? block, { exclude, labelled: new Set(optionEls), markers });
   if (prompt.length < 3 && target.t !== 'choice' && target.t !== 'grid') prompt = labelOf(first);
+  // Text just before the block beats the group's own label, which is often generic ("Select one answer").
+  if (prompt.length < 3 || (markers.size && prompt.length < 60)) {
+    prompt = clean(`${precedingText(block, hasControl)} ${prompt}`);
+  }
   if (prompt.length < 3) {
     const g = first.closest('[role=radiogroup],[role=group],fieldset') as HTMLElement | null;
     prompt = (g && labelOf(g)) || prompt;
-  }
-  if (prompt.length < 3 || (markers.size && prompt.length < 60)) {
-    prompt = clean(`${precedingText(block, hasControl)} ${prompt}`);
   }
   if (prompt.length < 3) prompt = clean(first.getAttribute('placeholder') ?? first.getAttribute('title'));
   if (!prompt) return null;

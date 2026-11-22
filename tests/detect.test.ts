@@ -173,3 +173,17 @@ describe('regressions from live Google Forms', () => {
     expect(detectCurrent(document, undefined)?.d.question.prompt).toBe('Name the capital of France');
   });
 });
+
+describe('button radios (Socrative-style)', () => {
+  it('reads labels from button[role=radio] and the question from the text before the group', () => {
+    document.body.innerHTML = `<main><div><p>Question 1 of 5</p><h2>What is the world's longest river?</h2></div>
+      <form><div role="radiogroup" aria-label="Select one answer">
+        <button type="button" role="radio" aria-checked="false" value="11"><span>A</span><div>The Mississippi River</div></button>
+        <button type="button" role="radio" aria-checked="false" value="12"><span>B</span><div>The Nile River</div></button>
+      </div></form><button>Submit Answer</button></main>`;
+    const q = detectCurrent(document, undefined)!.d.question;
+    expect(q.kind).toBe('single');
+    expect(q.prompt).toBe("Question 1 of 5 What is the world's longest river?");
+    expect(q.options!.map((o) => o.label)).toEqual(['A The Mississippi River', 'B The Nile River']);
+  });
+});
