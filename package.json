@@ -7,7 +7,8 @@
     "build": "node build.mjs",
     "package": "node build.mjs --zip",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "package:public": "node build.mjs --zip --no-key"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.12.0"

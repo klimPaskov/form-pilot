@@ -6,13 +6,13 @@ It never submits a form or moves to the next page.
 
 ## Install (under a minute)
 
-1. Unzip `form-pilot.zip` anywhere (or use the `dist` folder).
+1. Download `form-pilot.zip` from the [latest release](https://github.com/klimPaskov/form-pilot/releases/latest) and unzip it anywhere.
 2. Open `chrome://extensions`, switch on **Developer mode** (top right).
 3. Click **Load unpacked** and pick the unzipped folder.
 
 That is all: no settings page opens and nothing appears on pages. Press **Alt+Q** on a page with a
-question. If the build has a baked-in API key it works immediately; otherwise click the extension
-icon once and paste a key.
+question. Release builds contain no API key: click the extension icon once and paste your Anthropic
+key. A private build can have the key baked in (see Build).
 
 On a managed computer where Developer mode is disabled by the administrator, the extension cannot be
 installed. That restriction is intentional and Form Pilot does not try to get around it.
@@ -20,7 +20,7 @@ installed. That restriction is intentional and Form Pilot does not try to get ar
 ### Android
 
 Chrome for Android does not run extensions, so Form Pilot needs an Android browser that does.
-`npm run package` also writes a signed `form-pilot.crx` for browsers that install from a file:
+Each release also has a signed `form-pilot.crx` for browsers that install from a file:
 
 - **Microsoft Edge Canary**: Settings > About > tap the build number five times to unlock Developer
   options, then "Extension install by crx" and pick `form-pilot.crx`.

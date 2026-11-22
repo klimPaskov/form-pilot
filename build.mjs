@@ -6,7 +6,9 @@ import { execFileSync } from 'node:child_process';
 
 // Optional private key baked into the build so the extension works with zero setup.
 const local = fs.existsSync('config.local.json') ? JSON.parse(fs.readFileSync('config.local.json', 'utf8').replace(/^﻿/, '')) : {};
-const apiKey = typeof local.apiKey === 'string' && !local.apiKey.endsWith('...') ? local.apiKey : '';
+// `--no-key` builds a copy that is safe to publish: the key is then entered in the popup instead.
+const noKey = process.argv.includes('--no-key');
+const apiKey = !noKey && typeof local.apiKey === 'string' && !local.apiKey.endsWith('...') ? local.apiKey : '';
 
 fs.rmSync('dist', { recursive: true, force: true });
 fs.mkdirSync('dist');
