@@ -1,13 +1,19 @@
 package dev.formpilot.helper;
 
 import android.app.Activity;
+import android.content.ComponentName;
 import android.content.Intent;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.text.Editable;
 import android.text.InputType;
 import android.text.TextWatcher;
+import android.util.TypedValue;
+import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -15,64 +21,91 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.Spinner;
+import android.widget.Switch;
 import android.widget.TextView;
 
-/** Setup screen: switch the helper on, and enter the API key once. */
+/** Settings screen: switch the helper on, enter the API key, and choose how it behaves per site. */
 public class MainActivity extends Activity {
+    private static final int GREEN = 0xFF2E9E5B, RED = 0xFFD64545, BLUE = 0xFF1A73E8;
+
+    private Prefs prefs;
     private TextView status;
+    private TextView statusHint;
+    private Button statusButton;
+    private LinearLayout content;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        final Prefs prefs = new Prefs(this);
-        int pad = Math.round(20 * getResources().getDisplayMetrics().density);
+        prefs = new Prefs(this);
 
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(pad, pad, pad, pad);
+        content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(18), dp(12), dp(18), dp(40));
 
-        status = text(root, "", 16);
-        Button open = new Button(this);
-        open.setText("Open accessibility settings");
-        open.setOnClickListener(v -> startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)));
-        root.addView(open);
+        // ---- status: is the helper switched on, with one button to the right settings page ----
+        LinearLayout card = card();
+        status = text(card, "", 20, true);
+        statusHint = text(card, "", 14, false);
+        statusButton = new Button(this);
+        statusButton.setOnClickListener(v -> openAccessibility());
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = dp(10);
+        card.addView(statusButton, lp);
 
-        text(root, "\nAnthropic API key", 14);
+        // ---- Claude ----
+        section("Claude");
+        label("Anthropic API key");
         EditText key = new EditText(this);
         key.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         key.setHint("sk-ant-...");
         key.setText(prefs.apiKey());
+        key.setSingleLine(true);
         key.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) {}
             @Override public void onTextChanged(CharSequence s, int a, int b, int c) {}
             @Override public void afterTextChanged(Editable s) { prefs.set("apiKey", s.toString()); }
         });
-        root.addView(key);
+        content.addView(key);
+        note("Stored only on this phone.");
+        label("Model");
+        content.addView(spinner(Prefs.MODELS, prefs.model(), value -> prefs.set("model", value)));
+        label("Effort");
+        content.addView(spinner(Prefs.EFFORTS, prefs.effort(), value -> prefs.set("effort", value)));
+        note("Lower effort answers faster; higher thinks longer on hard questions.");
 
-        text(root, "\nModel", 14);
-        root.addView(spinner(Prefs.MODELS, prefs.model(), value -> prefs.set("model", value)));
-        text(root, "\nEffort (lower is faster)", 14);
-        root.addView(spinner(Prefs.EFFORTS, prefs.effort(), value -> prefs.set("effort", value)));
+        // ---- Google Forms ----
+        section("Google Forms");
+        toggle("Answer the page automatically",
+                "When a Google Form opens or moves to a new page, fill every unanswered question without touching the dot. Off: use the dot.",
+                prefs.autoForms(), on -> prefs.set("autoForms", on));
+        note("With the dot: tap for one question, hold until teal for the whole page, hold until purple (2 s) for every page of the form. "
+                + "Date, time and file-upload questions are left to you.");
 
-        android.widget.CheckBox auto = new android.widget.CheckBox(this);
-        auto.setText("Auto-answer on Socrative (selects the answer as each question appears; Submit Answer stays yours)");
-        auto.setChecked(prefs.autoSocrative());
-        auto.setOnCheckedChangeListener((button, on) -> prefs.set("autoSocrative", on));
-        root.addView(auto);
+        // ---- Socrative ----
+        section("Socrative");
+        toggle("Answer each question automatically",
+                "The answer is selected as each question appears. Submit Answer is still yours to press.",
+                prefs.autoSocrative(), on -> prefs.set("autoSocrative", on));
 
-        text(root, "\nHow to use\n"
-                + "1. Turn on Form Pilot under Accessibility (button above). On Android 13 or later, if the switch is greyed out: "
-                + "open this app's App info, tap the three dots, and choose \"Allow restricted settings\".\n"
-                + "2. A blue dot appears at the edge of the screen. Drag it wherever you like.\n"
-                + "3. Open a form or quiz in Chrome. Tap the dot to answer the question on screen. "
-                + "Hold it until it turns teal to answer every unanswered question on the page. "
-                + "Keep holding until it turns purple (2 seconds) to do every page of the form: it presses Next between pages and stops on the last one. "
-                + "Tap it during a run to stop.\n"
-                + "4. The dot turns green when filled, amber for a low-confidence answer, red on a problem.\n\n"
-                + "Form Pilot never presses Submit. It reads the screen only when you use the dot, and sends only the question to the Anthropic API.", 14);
+        // ---- Floating dot ----
+        section("Floating dot");
+        toggle("Show the dot",
+                "Hide it to keep the screen clear; the automatic modes above still work while it is hidden.",
+                prefs.showDot(), on -> prefs.set("showDot", on));
+        note("Drag the dot anywhere. Grey: working. Green: filled. Amber: low confidence, check it. Red: a problem. Tap it during a run to stop.");
+
+        // ---- About ----
+        section("What it does and does not do");
+        note("Form Pilot never presses Submit. In whole-form mode the only page button it presses is Next.\n\n"
+                + "It reads the screen only when you use the dot, or on a site where an automatic mode is switched on. "
+                + "Only the question, its options and a screenshot of any picture in it are sent to the Anthropic API.\n\n"
+                + "Claude can be wrong: an amber dot means low confidence.");
 
         ScrollView scroll = new ScrollView(this);
-        scroll.addView(root);
+        scroll.setFillViewport(true);
+        scroll.setFitsSystemWindows(true);
+        scroll.addView(content, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         setContentView(scroll);
     }
 
@@ -81,15 +114,101 @@ public class MainActivity extends Activity {
         super.onResume();
         String enabled = Settings.Secure.getString(getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
         boolean on = enabled != null && enabled.contains(getPackageName() + "/");
-        status.setText(on ? "Form Pilot is ON" : "Form Pilot is OFF - turn it on under Accessibility");
+        status.setText(on ? "Form Pilot is on" : "Form Pilot is off");
+        status.setTextColor(on ? GREEN : RED);
+        statusHint.setText(on
+                ? "Open a form or quiz in Chrome. To switch it off, use the button below and turn Form Pilot off."
+                : "Switch Form Pilot on under Accessibility. If the switch is greyed out: App info > three dots > Allow restricted settings.");
+        statusButton.setText(on ? "Open Form Pilot's accessibility switch" : "Turn on in Accessibility settings");
     }
 
-    private TextView text(LinearLayout parent, String value, int sp) {
+    /** Goes straight to this app's own accessibility page where the phone supports it, else to the list with it highlighted. */
+    private void openAccessibility() {
+        String component = new ComponentName(this, PilotService.class).flattenToString();
+        try {
+            Intent direct = new Intent("android.settings.ACCESSIBILITY_DETAILS_SETTINGS");
+            direct.putExtra(Intent.EXTRA_COMPONENT_NAME, component);
+            startActivity(direct);
+            return;
+        } catch (Exception ignored) {
+            // not available on this phone: fall through to the list
+        }
+        Intent list = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
+        Bundle args = new Bundle();
+        args.putString(":settings:fragment_args_key", component);
+        list.putExtra(":settings:fragment_args_key", component);
+        list.putExtra(":settings:show_fragment_args", args);
+        startActivity(list);
+    }
+
+    // ---- small view helpers ----------------------------------------------------------------------
+
+    private int dp(int value) {
+        return Math.round(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, value, getResources().getDisplayMetrics()));
+    }
+
+    private LinearLayout card() {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(16), dp(14), dp(16), dp(14));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(dp(14));
+        bg.setColor(0x14808080);
+        bg.setStroke(dp(1), 0x33808080);
+        card.setBackground(bg);
+        content.addView(card, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        return card;
+    }
+
+    private TextView text(LinearLayout parent, String value, int sp, boolean bold) {
         TextView t = new TextView(this);
         t.setText(value);
         t.setTextSize(sp);
+        if (bold) t.setTypeface(Typeface.DEFAULT_BOLD);
         parent.addView(t);
         return t;
+    }
+
+    private void section(String title) {
+        TextView t = text(content, title, 13, true);
+        t.setTextColor(BLUE);
+        t.setAllCaps(true);
+        t.setLetterSpacing(0.06f);
+        t.setPadding(0, dp(26), 0, dp(6));
+    }
+
+    private void label(String value) {
+        TextView t = text(content, value, 15, false);
+        t.setPadding(0, dp(10), 0, 0);
+    }
+
+    private void note(String value) {
+        TextView t = text(content, value, 13, false);
+        t.setAlpha(0.7f);
+        t.setPadding(0, dp(4), 0, dp(4));
+    }
+
+    private interface OnToggle {
+        void set(boolean on);
+    }
+
+    private void toggle(String title, String description, boolean on, final OnToggle onToggle) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, dp(8), 0, dp(8));
+        LinearLayout texts = new LinearLayout(this);
+        texts.setOrientation(LinearLayout.VERTICAL);
+        text(texts, title, 16, false);
+        TextView d = text(texts, description, 13, false);
+        d.setAlpha(0.7f);
+        row.addView(texts, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        final Switch sw = new Switch(this);
+        sw.setChecked(on);
+        sw.setOnCheckedChangeListener((button, checked) -> onToggle.set(checked));
+        row.addView(sw);
+        row.setOnClickListener(v -> sw.toggle());
+        content.addView(row);
     }
 
     private interface OnPick {

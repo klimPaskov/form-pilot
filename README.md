@@ -71,6 +71,9 @@ under Accessibility; the dot disappears and nothing is read.
   between pages, and stops on the last page.
 - **Tap during a run:** stops it.
 - **Socrative:** the answer is selected automatically as each question appears (switch in the app).
+- **Google Forms, optional:** switch on "Answer the page automatically" in the app to have each page
+  filled as it opens, without touching the dot.
+- The dot can be hidden in the app; the automatic modes keep working.
 - Drag the dot anywhere. It turns green when filled, amber for low confidence, red on a problem.
 
 The helper selects answers with real taps. The only page button it ever presses is Next, in

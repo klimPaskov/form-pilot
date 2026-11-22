@@ -57,11 +57,17 @@ public class PilotService extends AccessibilityService {
     private final java.util.Map<String, Integer> autoTries = new java.util.concurrent.ConcurrentHashMap<>();
     private final Runnable autoCheck = () -> worker.execute(this::autoAnswer);
     private volatile boolean cancel;
+    private Prefs settings;
+    /** Held in a field: the preferences keep only a weak reference to their listeners. */
+    private android.content.SharedPreferences.OnSharedPreferenceChangeListener settingsListener;
 
     @Override
     protected void onServiceConnected() {
         windows = (WindowManager) getSystemService(WINDOW_SERVICE);
-        addButton();
+        settings = new Prefs(this);
+        settingsListener = (sp, key) -> main.post(this::syncButton);
+        settings.listen(settingsListener);
+        syncButton();
         // Debug builds only: `adb shell am broadcast -a dev.formpilot.helper.DUMP -p dev.formpilot.helper`
         // writes what the reader sees to logcat, for diagnosing a page over USB.
         if ((getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
@@ -106,6 +112,17 @@ public class PilotService extends AccessibilityService {
     }
 
     // ---- floating button ---------------------------------------------------------------------------
+
+    /** Shows or hides the dot to match the setting. */
+    private void syncButton() {
+        boolean want = settings.showDot();
+        if (want && button == null) addButton();
+        else if (!want && button != null) {
+            windows.removeView(button);
+            button = null;
+            dot = null;
+        }
+    }
 
     private void addButton() {
         final int size = dp(46);
@@ -191,9 +208,9 @@ public class PilotService extends AccessibilityService {
 
     private void show(final int color, final String message) {
         main.post(() -> {
-            dot.setColor(color);
+            if (dot != null) dot.setColor(color);
             if (message != null) Toast.makeText(PilotService.this, message, Toast.LENGTH_LONG).show();
-            if (color != GREY) main.postDelayed(() -> { if (!busy) dot.setColor(BLUE); }, 2500);
+            if (color != GREY) main.postDelayed(() -> { if (!busy && dot != null) dot.setColor(BLUE); }, 2500);
         });
     }
 
@@ -230,31 +247,42 @@ public class PilotService extends AccessibilityService {
     }
 
     /**
-     * Auto mode: if the browser is on Socrative and shows a question that has no answer yet,
-     * answer it as a tap on the button would. Selecting only - Submit Answer is never pressed.
+     * Automatic modes. On Socrative: when a question with no answer is on screen, answer it as a tap
+     * on the dot would. On Google Forms: when a page with unanswered questions appears, fill it as
+     * holding the dot would, once per page. Neither presses Submit.
      */
     private void autoAnswer() {
         Prefs prefs = new Prefs(this);
-        if (busy || !prefs.autoSocrative() || prefs.apiKey().isEmpty()) return;
+        if (busy || prefs.apiKey().isEmpty()) return;
         AccessibilityNodeInfo root = getRootInActiveWindow();
-        if (root == null || !onSocrative(root)) return;
+        if (root == null) return;
+        String address = address(root);
+        // Only while a quiz is showing: Socrative's join and name screens have text fields that are not questions.
+        boolean socrative = address.contains("socrative.com") && !address.contains("/join")
+                && !address.contains("enter-name") && !address.contains("/login");
+        boolean forms = address.contains("docs.google.com/forms") || address.contains("forms.gle");
+        if (socrative ? !prefs.autoSocrative() : !(forms && prefs.autoForms())) return;
+
         int height = getResources().getDisplayMetrics().heightPixels;
         Question next = null;
         for (Question q : ScreenReader.read(root)) {
-            if (!q.answered() && !handled.contains(q.key()) && q.onScreen(height)) {
+            if (!q.answered() && !handled.contains(q.key()) && (!socrative || q.onScreen(height))) {
                 next = q;
                 break;
             }
         }
         if (next == null) return;
-        Integer tries = autoTries.get(next.key());
-        if (tries != null && tries >= 2) return;
-        autoTries.put(next.key(), tries == null ? 1 : tries + 1);
+        // A question that keeps failing is not retried forever: two tries per Socrative question,
+        // one automatic pass per Google Forms page.
+        String key = socrative ? next.key() : "page|" + ScreenReader.signature(root);
+        Integer tries = autoTries.get(key);
+        if (tries != null && tries >= (socrative ? 2 : 1)) return;
+        autoTries.put(key, tries == null ? 1 : tries + 1);
         busy = true;
         cancel = false;
         show(GREY, null);
         try {
-            run(new Claude(prefs.apiKey(), prefs.model(), prefs.effort()), false, true);
+            run(new Claude(prefs.apiKey(), prefs.model(), prefs.effort()), !socrative, true);
         } catch (Throwable t) {
             note("log.txt", "AUTO ERROR " + Log.getStackTraceString(t), true);
             show(RED, "Form Pilot error: " + t.getMessage());
@@ -264,17 +292,14 @@ public class PilotService extends AccessibilityService {
         }
     }
 
-    /** The address bar of the browser shows which site is open. */
-    private static boolean onSocrative(AccessibilityNodeInfo root) {
+    /** The browser's address bar shows which site is open. */
+    private static String address(AccessibilityNodeInfo root) {
         String pkg = String.valueOf(root.getPackageName());
         for (AccessibilityNodeInfo bar : root.findAccessibilityNodeInfosByViewId(pkg + ":id/url_bar")) {
             CharSequence url = bar.getText();
-            // Only while a quiz is showing: the join and name screens have text fields that are not questions.
-            if (url == null || !url.toString().contains("socrative.com")) continue;
-            String address = url.toString();
-            return !address.contains("/join") && !address.contains("enter-name") && !address.contains("/login");
+            if (url != null) return url.toString();
         }
-        return false;
+        return "";
     }
 
     /**

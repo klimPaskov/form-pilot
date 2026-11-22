@@ -31,6 +31,20 @@ final class Prefs {
         return sp.getBoolean("autoSocrative", true);
     }
 
+    /** Fill a Google Forms page automatically when it appears. */
+    boolean autoForms() {
+        return sp.getBoolean("autoForms", false);
+    }
+
+    /** Whether the floating dot is shown. */
+    boolean showDot() {
+        return sp.getBoolean("showDot", true);
+    }
+
+    void listen(SharedPreferences.OnSharedPreferenceChangeListener listener) {
+        sp.registerOnSharedPreferenceChangeListener(listener);
+    }
+
     void set(String key, boolean value) {
         sp.edit().putBoolean(key, value).apply();
     }
