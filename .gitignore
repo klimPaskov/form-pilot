@@ -1,0 +1,6 @@
+node_modules/
+dist/
+form-pilot.zip
+form-pilot.crx
+key.pem
+config.local.json

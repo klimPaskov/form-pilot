@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Form Pilot</title>
+    <style>
+      :root { color-scheme: light dark; --line: #d5d8dc; --muted: #6b7280; }
+      @media (prefers-color-scheme: dark) { :root { --line: #3a3d42; --muted: #9aa0a6; } }
+      body { width: 290px; margin: 0; padding: 12px 14px; font: 13px/1.4 system-ui, sans-serif; }
+      h1 { font-size: 14px; margin: 0; }
+      header, .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+      .row { padding: 7px 0; border-top: 1px solid var(--line); }
+      header { padding-bottom: 9px; }
+      label { flex: 1; }
+      small { display: block; color: var(--muted); font-size: 11px; }
+      select, input[type='password'] { width: 150px; box-sizing: border-box; font: inherit; padding: 3px 5px; }
+      button { font: inherit; padding: 4px 9px; cursor: pointer; }
+      #run { width: 100%; margin-top: 9px; padding: 6px; }
+      kbd { font: 12px ui-monospace, monospace; border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Form Pilot</h1>
+      <label style="flex: none"><input type="checkbox" id="enabled" /> Enabled</label>
+    </header>
+    <div class="row">
+      <label>Shortcut <small>One press answers one question</small></label>
+      <span><kbd id="shortcut">-</kbd> <button id="change">Change</button></span>
+    </div>
+    <div class="row">
+      <label for="model">Model</label>
+      <select id="model"></select>
+    </div>
+    <div class="row">
+      <label for="effort">Effort <small>Lower is faster</small></label>
+      <select id="effort">
+        <option>low</option><option>medium</option><option>high</option><option>xhigh</option>
+      </select>
+    </div>
+    <div class="row">
+      <label for="indicator">On-page indicator</label>
+      <select id="indicator">
+        <option value="off">Hidden</option>
+        <option value="minimal">Small dot</option>
+        <option value="full">Dot + answer</option>
+      </select>
+    </div>
+    <div class="row"><label for="explain">Show a short explanation</label><input type="checkbox" id="explain" /></div>
+    <div class="row"><label for="webSearch">Let Claude search the web</label><input type="checkbox" id="webSearch" /></div>
+    <div class="row">
+      <label for="visionFallback">Screenshot fallback <small>When no form fields are found</small></label>
+      <input type="checkbox" id="visionFallback" />
+    </div>
+    <div class="row">
+      <label for="touchButton">Floating button <small>For phones: tap instead of a shortcut</small></label>
+      <input type="checkbox" id="touchButton" />
+    </div>
+    <div class="row">
+      <label for="apiKey">API key <small id="keyNote"></small></label>
+      <input type="password" id="apiKey" autocomplete="off" />
+    </div>
+    <button id="run">Answer current question</button>
+    <script src="popup.js"></script>
+  </body>
+</html>
