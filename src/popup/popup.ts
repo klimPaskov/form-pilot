@@ -4,7 +4,7 @@ import { BAKED_KEY, DEFAULTS, MODELS, saveSettings } from '../shared/settings';
 import type { Settings } from '../shared/types';
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
-const CHECKS = ['enabled', 'explain', 'webSearch', 'visionFallback', 'touchButton'] as const;
+const CHECKS = ['enabled', 'explain', 'webSearch', 'visionFallback', 'touchButton', 'autoSocrative'] as const;
 const SELECTS = ['model', 'effort', 'indicator'] as const;
 
 async function init(): Promise<void> {

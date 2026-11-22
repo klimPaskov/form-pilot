@@ -29,7 +29,7 @@ const PERSONAL_AUTOCOMPLETE = /name|email|tel|address|street|postal|organization
 const PERSONAL_PROMPT =
   /^(\d+[.)]\s*)?(your |full |first |last |student )?((name|surname|id( number)?|class|group|date)\s*[:*]?$|(e-?mail|phone)\b)/i;
 const INLINE = new Set(['SPAN', 'LABEL', 'B', 'I', 'EM', 'STRONG', 'FONT', 'A', 'U']);
-const STOP_CLIMB = 'form,main,article,body,[role=main],[role=form]';
+const STOP_CLIMB = 'form,main,body,[role=main],[role=form]';
 
 /** Blocks this page session already answered or gave up on, so the next activation moves on. */
 const handled = new WeakSet<Element>();

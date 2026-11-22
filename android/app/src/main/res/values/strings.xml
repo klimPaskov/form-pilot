@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Form Pilot</string>
+    <string name="service_description">Reads the form or quiz question shown on screen, asks Claude for the answer and fills it in when you tap the floating button. It reads the screen only when you tap the button, sends only the question to the Anthropic API, and never presses Submit.</string>
+</resources>

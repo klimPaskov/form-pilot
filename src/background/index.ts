@@ -26,37 +26,46 @@ let cancel = false;
 let lastEnd = 0;
 
 chrome.commands.onCommand.addListener((command) => {
-  if (COMMANDS[command]) void activate(COMMANDS[command]);
+  if (COMMANDS[command]) activate(COMMANDS[command]);
 });
-chrome.runtime.onMessage.addListener((msg) => {
-  if (msg?.type === 'answer') void activate(msg.mode === 'page' || msg.mode === 'form' ? msg.mode : 'one');
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg?.type !== 'answer') return;
+  const mode: Mode = msg.mode === 'page' || msg.mode === 'form' ? msg.mode : 'one';
+  // Auto mode (watch.ts) answers the tab the question appeared in, and reports nothing but answers.
+  const auto = !!msg.auto && !!sender.tab?.id;
+  sendResponse({ started: activate(mode, auto ? sender.tab : undefined) });
 });
 
-async function activate(mode: Mode): Promise<void> {
+/** Starts a run unless one is in flight; returns whether it started. `autoTab` marks an auto-mode run. */
+function activate(mode: Mode, autoTab?: chrome.tabs.Tab): boolean {
   if (busy) {
-    if (busy !== 'one') cancel = true;
-    return;
+    if (busy !== 'one' && !autoTab) cancel = true;
+    return false;
   }
-  if (Date.now() - lastEnd < 500) return;
+  if (!autoTab && Date.now() - lastEnd < 500) return false;
   busy = mode;
   cancel = false;
-  try {
-    await run(mode);
-  } finally {
+  void run(mode, autoTab).finally(() => {
     busy = null;
     lastEnd = Date.now();
-  }
+  });
+  return true;
 }
 
-// ---- floating trigger for touch devices (off on desktop, on by default on Android) -------------------
-async function syncTouchButton(): Promise<void> {
-  const { touchButton } = await loadSettings();
-  const registered = (await chrome.scripting.getRegisteredContentScripts({ ids: ['touch'] })).length > 0;
-  if (touchButton && !registered) {
-    await chrome.scripting.registerContentScripts([{ id: 'touch', js: ['touch.js'], matches: ['<all_urls>'], runAt: 'document_idle' }]);
-  } else if (!touchButton && registered) {
-    await chrome.scripting.unregisterContentScripts({ ids: ['touch'] });
+// ---- optional page scripts ---------------------------------------------------------------------------
+async function syncScript(id: string, on: boolean, matches: string[]): Promise<void> {
+  const registered = (await chrome.scripting.getRegisteredContentScripts({ ids: [id] })).length > 0;
+  if (on && !registered) {
+    await chrome.scripting.registerContentScripts([{ id, js: [`${id}.js`], matches, runAt: 'document_idle' }]);
+  } else if (!on && registered) {
+    await chrome.scripting.unregisterContentScripts({ ids: [id] });
   }
+}
+/** Optional always-on page scripts: the touch button, and auto mode on one-question-at-a-time sites. */
+async function syncTouchButton(): Promise<void> {
+  const s = await loadSettings();
+  await syncScript('touch', s.touchButton, ['<all_urls>']);
+  await syncScript('watch', s.enabled && s.autoSocrative, ['*://*.socrative.com/*']);
 }
 chrome.runtime.onInstalled.addListener(async ({ reason }) => {
   if (reason === 'install' && /Android/i.test(navigator.userAgent)) await saveSettings({ touchButton: true });
@@ -106,11 +115,12 @@ const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms
 
 // ---- one activation ----------------------------------------------------------------------------------
 
-async function run(mode: Mode): Promise<void> {
+async function run(mode: Mode, autoTab?: chrome.tabs.Tab): Promise<void> {
   const settings = await loadSettings();
   if (!settings.enabled) return;
-  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-  if (!tab?.id || !/^(https?|file):/.test(tab.url ?? '')) return badge('!', '#d64545');
+  const quiet = !!autoTab; // auto mode: no error popups, no screenshot fallback
+  const tab = autoTab ?? (await chrome.tabs.query({ active: true, lastFocusedWindow: true }))[0];
+  if (!tab?.id || !/^(https?|file):/.test(tab.url ?? '')) return quiet ? undefined : badge('!', '#d64545');
   const tabId = tab.id;
 
   const status: Status = (state, text = '', force = false) => {
@@ -126,21 +136,21 @@ async function run(mode: Mode): Promise<void> {
   try {
     await inject(tabId);
     if (!settings.apiKey) return status('error', 'No API key set - open the Form Pilot popup');
-    if (mode === 'one') await answerOne(settings, tabId, tab.windowId, status);
+    if (mode === 'one') await answerOne(settings, tabId, tab.windowId, status, quiet);
     else await answerMany(mode, settings, tabId, tab.windowId, status);
   } catch (e) {
     status('error', e instanceof Error ? e.message : String(e));
   }
 }
 
-async function answerOne(settings: Settings, tabId: number, windowId: number, status: Status): Promise<void> {
+async function answerOne(settings: Settings, tabId: number, windowId: number, status: Status, quiet = false): Promise<void> {
   const found = (
     await inFrames<DetectResult, []>(tabId, 'all', () => (globalThis as unknown as G).__formPilot?.detect() ?? { found: false, score: 0 }, [])
   )
     .filter((f) => f.result?.found)
     .sort((a, b) => b.result.score - a.result.score)[0];
 
-  if (!found) return visionOnly(settings, windowId, status);
+  if (!found) return quiet ? undefined : visionOnly(settings, windowId, status);
   const frameId = found.frameId;
   const q = found.result.question!;
 

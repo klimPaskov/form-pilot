@@ -21,6 +21,7 @@ export const DEFAULTS: Settings = {
   indicator: 'minimal',
   visionFallback: true,
   touchButton: false,
+  autoSocrative: true,
 };
 
 /** Stored settings over defaults; an empty stored key falls back to the baked-in one. */

@@ -77,4 +77,6 @@ export interface Settings {
   visionFallback: boolean;
   /** Floating on-page trigger for touch devices. */
   touchButton: boolean;
+  /** Select the answer automatically whenever Socrative shows a new question. */
+  autoSocrative: boolean;
 }

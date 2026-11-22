@@ -39,6 +39,8 @@ has not been verified on a device yet.
 - **Alt+Shift+W** answers every page of a multi-page form, pressing "Next" between pages. It stops
   on the last page, and also if a page does not advance (for example a required question it could
   not answer).
+- **Socrative auto mode** (on by default, switch in the popup): as each new question appears, the
+  answer is selected without a key press. "Submit Answer" is still yours to press.
 - No mode ever submits: the final Submit is always yours. Questions that already have an answer are
   left alone. Pressing any shortcut during a page or form run stops it.
 - Change the keys at `chrome://extensions/shortcuts` (the popup has a button for it). If you

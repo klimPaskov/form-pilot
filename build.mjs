@@ -24,6 +24,7 @@ await build({ ...common, entryPoints: ['src/background/index.ts'], outfile: 'dis
 await build({ ...common, entryPoints: ['src/content/index.ts'], outfile: 'dist/content.js', format: 'iife' });
 await build({ ...common, entryPoints: ['src/popup/popup.ts'], outfile: 'dist/popup.js', format: 'iife' });
 await build({ ...common, entryPoints: ['src/content/touch.ts'], outfile: 'dist/touch.js', format: 'iife' });
+await build({ ...common, entryPoints: ['src/content/watch.ts'], outfile: 'dist/watch.js', format: 'iife' });
 for (const f of ['manifest.json', 'popup/popup.html']) fs.copyFileSync(`src/${f}`, `dist/${f.split('/').pop()}`);
 
 console.log(apiKey ? 'API key baked in from config.local.json' : 'No baked API key (set one in the popup, or create config.local.json)');

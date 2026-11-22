@@ -187,3 +187,16 @@ describe('button radios (Socrative-style)', () => {
     expect(q.options!.map((o) => o.label)).toEqual(['A The Mississippi River', 'B The Nile River']);
   });
 });
+
+describe('question pictures outside the option group', () => {
+  it('includes an image that sits beside the options inside the same article', () => {
+    document.body.innerHTML = `<main><article><p>This is an outline of which country?</p>
+      <img src="https://example.com/outline.jpg">
+      <div><div role="radiogroup" aria-label="Select one answer">
+        <button type="button" role="radio" aria-checked="false">France</button>
+        <button type="button" role="radio" aria-checked="false">Italy</button></div></div></article></main>`;
+    const q = detectCurrent(document, undefined)!.d.question;
+    expect(q.prompt).toBe('This is an outline of which country?');
+    expect(q.images).toEqual([{ url: 'https://example.com/outline.jpg', caption: 'Figure for the question:' }]);
+  });
+});
