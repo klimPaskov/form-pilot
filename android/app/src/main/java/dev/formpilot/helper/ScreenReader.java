@@ -44,6 +44,7 @@ final class ScreenReader {
         StringBuilder context = new StringBuilder();
         StringBuilder extra = new StringBuilder();
         Rect bounds = new Rect();
+        Rect imageBounds = new Rect();
         boolean underHeading = false;
         boolean contextOpen = true;
         boolean hasImage = false;
@@ -61,7 +62,6 @@ final class ScreenReader {
                     context.setLength(0);
                     extra.setLength(0);
                     bounds.setEmpty();
-                    hasImage = false;
                     underHeading = true;
                     contextOpen = true;
                     context.append(it.text.replaceAll("\\s*(Required question|\\*)\\s*$", "")).append(' ');
@@ -73,8 +73,9 @@ final class ScreenReader {
                     unionBounds(bounds, it.node);
                     break;
                 case IMAGE:
+                    // Kept apart from the text bounds: the picture can come before its question's heading.
                     hasImage = true;
-                    unionBounds(bounds, it.node);
+                    unionBounds(imageBounds, it.node);
                     break;
                 case RADIO:
                 case CHECK: {
@@ -116,6 +117,9 @@ final class ScreenReader {
                     i = j - 1;
                     q.prompt = prompt(context, extra);
                     q.hasImage |= hasImage;
+                    if (hasImage) q.bounds.union(imageBounds);
+                    hasImage = false;
+                    imageBounds.setEmpty();
                     if (q.options.size() >= 2 && usable(q)) out.add(q);
                     contextOpen = false;
                     extra.setLength(0);
@@ -136,6 +140,9 @@ final class ScreenReader {
                     i = j - 1;
                     q.prompt = prompt(context, extra);
                     q.hasImage = hasImage;
+                    if (hasImage) q.bounds.union(imageBounds);
+                    hasImage = false;
+                    imageBounds.setEmpty();
                     if (q.options.size() >= 2 && usable(q)) out.add(q);
                     contextOpen = false;
                     extra.setLength(0);
