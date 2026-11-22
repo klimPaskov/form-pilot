@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Form Pilot",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "description": "Answers the current form or quiz question with Claude, one question per shortcut press.",
   "permissions": [
     "scripting",

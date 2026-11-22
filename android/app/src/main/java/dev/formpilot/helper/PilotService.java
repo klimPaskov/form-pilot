@@ -348,7 +348,12 @@ public class PilotService extends AccessibilityService {
             try {
                 Claude.Answer a = claude.ask(q, q.hasImage ? pictureOf(q) : null);
                 note("log.txt", "A answerable=" + a.answerable + " conf=" + a.confidence + " choices=" + a.choices + " text=" + a.text, true);
-                if (cancel) break;
+                if (cancel) {
+                    // Stopped while waiting for this answer: drop it, and let the question be picked
+                    // up again when the run is continued.
+                    handled.remove(q.key());
+                    break;
+                }
                 if (!a.answerable) {
                     lastMessage = "No answer for this question - skipped";
                     failed++;
