@@ -60,7 +60,9 @@ public class MainActivity extends Activity {
         key.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         key.setHint("sk-ant-...");
         key.setText(prefs.apiKey());
-        key.setSingleLine(true);
+        // Keep the key masked. (setSingleLine() would silently replace the password masking.)
+        key.setMaxLines(1);
+        key.setTransformationMethod(android.text.method.PasswordTransformationMethod.getInstance());
         key.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) {}
             @Override public void onTextChanged(CharSequence s, int a, int b, int c) {}
