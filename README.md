@@ -34,8 +34,15 @@ has not been verified on a device yet.
 ## Use
 
 - **Alt+Q** answers the question you are on: the unanswered question that has keyboard focus,
-  otherwise the first unanswered one on screen. Change the key at `chrome://extensions/shortcuts`
-  (the popup has a button for it).
+  otherwise the first unanswered one on screen.
+- **Alt+W** answers every unanswered question on the open page.
+- **Alt+Shift+W** answers every page of a multi-page form, pressing "Next" between pages. It stops
+  on the last page, and also if a page does not advance (for example a required question it could
+  not answer).
+- No mode ever submits: the final Submit is always yours. Questions that already have an answer are
+  left alone. Pressing any shortcut during a page or form run stops it.
+- Change the keys at `chrome://extensions/shortcuts` (the popup has a button for it). If you
+  installed an earlier version, the two new shortcuts may need to be set there once.
 - A small dot in the bottom-right corner shows progress: grey while working, green when filled,
   amber for a low-confidence answer, red with a short message on errors. Click it to dismiss.
 - The popup (extension icon) is optional: enable/disable, model, effort, indicator style,

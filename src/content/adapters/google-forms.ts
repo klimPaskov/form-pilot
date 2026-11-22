@@ -20,6 +20,9 @@ export const googleForms: Adapter = {
     const isDescription = next && !next.querySelector('input,textarea,[role=radio],[role=checkbox],[role=listbox]');
     return clean(`${title} ${isDescription ? readText(next) : ''}`);
   },
+  // Google marks its buttons with stable ids that do not depend on the interface language:
+  // OCpkoe is Next, M2UYVd is Submit (which is deliberately never touched).
+  next: (root) => root.querySelector<HTMLElement>('[role=button][jsname=OCpkoe]'),
   skip: (el) =>
     el.getAttribute('data-value') === '__other_option__' ||
     el.getAttribute('data-answer-value') === '__other_option__' ||

@@ -12,6 +12,8 @@ export interface Adapter {
   blocks?(root: ParentNode): Element[];
   /** The question text of a block. */
   prompt?(block: Element): string;
+  /** The next-page control of a multi-page form. Must never return the submit control. */
+  next?(root: ParentNode): HTMLElement | null;
   /** Controls that are not answers (e.g. the "Other" free-text option). */
   skip?(el: HTMLElement): boolean;
 }

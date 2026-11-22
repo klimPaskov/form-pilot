@@ -24,4 +24,9 @@ export interface Provider {
 }
 
 /** An error whose message is safe and useful to show to the user. */
-export class ProviderError extends Error {}
+export class ProviderError extends Error {
+  /** `fatal`: the same request would fail again for any question (bad key, unknown model). */
+  constructor(message: string, readonly fatal = false) {
+    super(message);
+  }
+}

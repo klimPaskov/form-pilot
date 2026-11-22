@@ -32,14 +32,18 @@ async function init(): Promise<void> {
   $('keyNote').textContent = BAKED_KEY ? 'Leave empty to use the built-in key' : 'Stored only in this browser';
   key.addEventListener('change', () => void saveSettings({ apiKey: key.value.trim() }));
 
-  const commands = await chrome.commands.getAll();
-  $('shortcut').textContent = commands.find((c) => c.name === 'answer')?.shortcut || 'not set';
+  for (const c of await chrome.commands.getAll()) {
+    const el = document.getElementById('key-' + c.name);
+    if (el) el.textContent = c.shortcut || 'not set';
+  }
   // Chrome only lets shortcuts be changed on its own page.
   $('change').addEventListener('click', () => void chrome.tabs.create({ url: 'chrome://extensions/shortcuts' }));
-  $('run').addEventListener('click', () => {
-    void chrome.runtime.sendMessage({ type: 'answer' });
-    window.close();
-  });
+  for (const button of document.querySelectorAll<HTMLElement>('button[data-mode]')) {
+    button.addEventListener('click', () => {
+      void chrome.runtime.sendMessage({ type: 'answer', mode: button.dataset.mode });
+      window.close();
+    });
+  }
 }
 
 void init();

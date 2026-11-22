@@ -1,16 +1,41 @@
 {
   "manifest_version": 3,
   "name": "Form Pilot",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Answers the current form or quiz question with Claude, one question per shortcut press.",
-  "permissions": ["scripting", "storage"],
-  "host_permissions": ["<all_urls>"],
-  "background": { "service_worker": "background.js", "type": "module" },
-  "action": { "default_title": "Form Pilot", "default_popup": "popup.html" },
+  "permissions": [
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Form Pilot",
+    "default_popup": "popup.html"
+  },
   "commands": {
     "answer": {
-      "suggested_key": { "default": "Alt+Q" },
+      "suggested_key": {
+        "default": "Alt+Q"
+      },
       "description": "Answer the current question"
+    },
+    "answer-page": {
+      "suggested_key": {
+        "default": "Alt+W"
+      },
+      "description": "Answer every question on this page"
+    },
+    "answer-form": {
+      "suggested_key": {
+        "default": "Alt+Shift+W"
+      },
+      "description": "Answer every page of the form (never submits)"
     }
   }
 }

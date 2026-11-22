@@ -15,7 +15,6 @@
       small { display: block; color: var(--muted); font-size: 11px; }
       select, input[type='password'] { width: 150px; box-sizing: border-box; font: inherit; padding: 3px 5px; }
       button { font: inherit; padding: 4px 9px; cursor: pointer; }
-      #run { width: 100%; margin-top: 9px; padding: 6px; }
       kbd { font: 12px ui-monospace, monospace; border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
     </style>
   </head>
@@ -25,8 +24,14 @@
       <label style="flex: none"><input type="checkbox" id="enabled" /> Enabled</label>
     </header>
     <div class="row">
-      <label>Shortcut <small>One press answers one question</small></label>
-      <span><kbd id="shortcut">-</kbd> <button id="change">Change</button></span>
+      <label>Shortcuts <small>Pressing one during a page or form run stops it</small></label>
+      <button id="change">Change</button>
+    </div>
+    <div class="row"><label>One question</label><span><kbd id="key-answer">-</kbd> <button data-mode="one">Run</button></span></div>
+    <div class="row"><label>Whole page</label><span><kbd id="key-answer-page">-</kbd> <button data-mode="page">Run</button></span></div>
+    <div class="row">
+      <label>Whole form <small>All pages; never submits</small></label>
+      <span><kbd id="key-answer-form">-</kbd> <button data-mode="form">Run</button></span>
     </div>
     <div class="row">
       <label for="model">Model</label>
@@ -60,7 +65,6 @@
       <label for="apiKey">API key <small id="keyNote"></small></label>
       <input type="password" id="apiKey" autocomplete="off" />
     </div>
-    <button id="run">Answer current question</button>
     <script src="popup.js"></script>
   </body>
 </html>

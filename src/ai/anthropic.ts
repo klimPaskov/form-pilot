@@ -9,9 +9,9 @@ type Content = Anthropic.ContentBlockParam[];
 
 function friendly(e: unknown): Error {
   if (e instanceof ProviderError) return e;
-  if (e instanceof Anthropic.AuthenticationError) return new ProviderError('Invalid API key');
-  if (e instanceof Anthropic.PermissionDeniedError) return new ProviderError('This API key cannot use that model');
-  if (e instanceof Anthropic.NotFoundError) return new ProviderError('Model not found - check the model setting');
+  if (e instanceof Anthropic.AuthenticationError) return new ProviderError('Invalid API key', true);
+  if (e instanceof Anthropic.PermissionDeniedError) return new ProviderError('This API key cannot use that model', true);
+  if (e instanceof Anthropic.NotFoundError) return new ProviderError('Model not found - check the model setting', true);
   if (e instanceof Anthropic.RateLimitError) return new ProviderError('Rate limited - try again in a moment');
   if (e instanceof Anthropic.APIConnectionTimeoutError) return new ProviderError('Claude took too long to answer');
   if (e instanceof Anthropic.APIConnectionError) return new ProviderError('Network error - could not reach Claude');
