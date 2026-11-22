@@ -18,6 +18,8 @@ final class Question {
     final List<AccessibilityNodeInfo> nodes = new ArrayList<>();
     /** The question contains a picture, so a screenshot should go with it. */
     boolean hasImage;
+    /** That picture, so it can be scrolled into view before the screenshot. */
+    AccessibilityNodeInfo image;
     /** On-screen area covering the question (for cropping the screenshot). */
     final Rect bounds = new Rect();
 

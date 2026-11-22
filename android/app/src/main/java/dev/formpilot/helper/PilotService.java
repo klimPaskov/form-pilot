@@ -346,7 +346,7 @@ public class PilotService extends AccessibilityService {
             handled.add(q.key());
             note("log.txt", "Q " + q.kind + " | " + q.prompt + " | " + q.options, true);
             try {
-                Claude.Answer a = claude.ask(q, q.hasImage ? screenshot(q.bounds) : null);
+                Claude.Answer a = claude.ask(q, q.hasImage ? pictureOf(q) : null);
                 note("log.txt", "A answerable=" + a.answerable + " conf=" + a.confidence + " choices=" + a.choices + " text=" + a.text, true);
                 if (cancel) break;
                 if (!a.answerable) {
@@ -570,6 +570,21 @@ public class PilotService extends AccessibilityService {
     }
 
     // ---- screenshot for questions with pictures (Android 11+) ---------------------------------------
+
+    /**
+     * A screenshot of the question's picture. The picture is scrolled into view first: one that is
+     * off screen has no position yet, and a screenshot would show whatever else is on screen.
+     */
+    private byte[] pictureOf(Question q) {
+        if (q.image == null) return screenshot(q.bounds);
+        q.image.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SHOW_ON_SCREEN.getId());
+        pause(600);
+        q.image.refresh();
+        Rect r = new Rect();
+        q.image.getBoundsInScreen(r);
+        note("log.txt", "picture at " + r, true);
+        return screenshot(r.isEmpty() ? q.bounds : r);
+    }
 
     private byte[] screenshot(final Rect area) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null;

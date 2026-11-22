@@ -45,6 +45,7 @@ final class ScreenReader {
         StringBuilder extra = new StringBuilder();
         Rect bounds = new Rect();
         Rect imageBounds = new Rect();
+        AccessibilityNodeInfo image = null;
         boolean underHeading = false;
         boolean contextOpen = true;
         boolean hasImage = false;
@@ -75,6 +76,7 @@ final class ScreenReader {
                 case IMAGE:
                     // Kept apart from the text bounds: the picture can come before its question's heading.
                     hasImage = true;
+                    image = it.node;
                     unionBounds(imageBounds, it.node);
                     break;
                 case RADIO:
@@ -118,7 +120,9 @@ final class ScreenReader {
                     q.prompt = prompt(context, extra);
                     q.hasImage |= hasImage;
                     if (hasImage) q.bounds.union(imageBounds);
+                    q.image = image;
                     hasImage = false;
+                    image = null;
                     imageBounds.setEmpty();
                     if (q.options.size() >= 2 && usable(q)) out.add(q);
                     contextOpen = false;
@@ -141,7 +145,9 @@ final class ScreenReader {
                     q.prompt = prompt(context, extra);
                     q.hasImage = hasImage;
                     if (hasImage) q.bounds.union(imageBounds);
+                    q.image = image;
                     hasImage = false;
+                    image = null;
                     imageBounds.setEmpty();
                     if (q.options.size() >= 2 && usable(q)) out.add(q);
                     contextOpen = false;
@@ -245,7 +251,10 @@ final class ScreenReader {
         if (cls.endsWith("Image") || cls.endsWith("ImageView")) {
             Rect r = new Rect();
             n.getBoundsInScreen(r);
-            if (r.width() > 80 && r.height() > 80) {
+            Bundle extras = n.getExtras();
+            int w = extras == null ? r.width() : extras.getInt("AccessibilityNodeInfo.unclippedWidth", r.width());
+            int h = extras == null ? r.height() : extras.getInt("AccessibilityNodeInfo.unclippedHeight", r.height());
+            if (w > 80 && h > 80) {
                 Item it = new Item();
                 it.type = Type.IMAGE;
                 it.node = n;
