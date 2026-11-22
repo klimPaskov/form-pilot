@@ -18,6 +18,8 @@ if (window.top === window && !(globalThis as { __formPilotWatch?: boolean }).__f
 
   const check = (attempt = 0): void => {
     const now = signature();
+    // Only while a quiz is showing: the join and name screens have text fields that are not questions.
+    if (/join|enter-name|login/.test(location.pathname)) return;
     if (now === last || !hasQuestion()) return;
     chrome.runtime.sendMessage({ type: 'answer', mode: 'one', auto: true }, (reply) => {
       if (chrome.runtime.lastError) return; // extension reloaded: stay quiet until the page reloads

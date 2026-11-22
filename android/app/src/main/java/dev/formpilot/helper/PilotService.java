@@ -269,7 +269,10 @@ public class PilotService extends AccessibilityService {
         String pkg = String.valueOf(root.getPackageName());
         for (AccessibilityNodeInfo bar : root.findAccessibilityNodeInfosByViewId(pkg + ":id/url_bar")) {
             CharSequence url = bar.getText();
-            if (url != null && url.toString().contains("socrative.com")) return true;
+            // Only while a quiz is showing: the join and name screens have text fields that are not questions.
+            if (url == null || !url.toString().contains("socrative.com")) continue;
+            String address = url.toString();
+            return !address.contains("/join") && !address.contains("enter-name") && !address.contains("/login");
         }
         return false;
     }

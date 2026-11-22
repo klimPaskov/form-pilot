@@ -68,7 +68,7 @@ under Accessibility; the dot disappears and nothing is read.
 - **Tap the dot:** answers the question on screen.
 - **Hold the dot until it turns teal:** answers every unanswered question on the page.
 - **Keep holding until it turns purple (2 seconds):** does every page of the form, pressing Next
-  between pages, and stops on the last page. (New and not yet tested on a device.)
+  between pages, and stops on the last page.
 - **Tap during a run:** stops it.
 - **Socrative:** the answer is selected automatically as each question appears (switch in the app).
 - Drag the dot anywhere. It turns green when filled, amber for low confidence, red on a problem.
